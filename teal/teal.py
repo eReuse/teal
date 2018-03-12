@@ -1,0 +1,121 @@
+import inspect
+from typing import Dict, Iterable, Tuple, Type
+
+from anytree import Node
+from ereuse_utils import ensure_utf8
+from flask import Flask, jsonify
+from werkzeug.exceptions import HTTPException
+from werkzeug.wsgi import DispatcherMiddleware
+
+from teal.auth import Authentication
+from teal.config import Config as ConfigClass
+from teal.db import Database as DatabaseClass
+from teal.resource import ResourceDefinition
+from teal.tests.client import Client
+
+
+class Teal(Flask):
+    """
+    An opinionated REST and JSON first server built on Flask using
+    MongoDB and Marshmallow.
+    """
+    test_client_class = Client
+
+    def __init__(self, config: ConfigClass, import_name=__package__, static_path=None,
+                 static_url_path=None, static_folder='static', template_folder='templates',
+                 instance_path=None, instance_relative_config=False, root_path=None,
+                 Database: Type[DatabaseClass] = DatabaseClass,
+                 Auth: Type[Authentication] = Authentication):
+        ensure_utf8(self.__class__.__name__)
+        super().__init__(import_name, static_path, static_url_path, static_folder, template_folder,
+                         instance_path, instance_relative_config, root_path)
+        self.config.from_object(config)
+        # Load databases
+        self.db = Database(self)
+        if 'COMMON_DBNAME' in self.config:
+            # Uses a secondary database shared with the middlewares
+            # if any
+            self.common_db = Database(self, config_prefix='COMMON')
+
+        self.auth = Auth()
+        self.load_resources()
+        self.register_error_handler(HTTPException, self._handle_standard_error)
+
+    # noinspection PyAttributeOutsideInit
+    def load_resources(self):
+        self.resources = {}  # type: Dict[str, ResourceDefinition]
+        """
+        The resources definitions loaded on this App, referenced by their
+        type name.
+        """
+        self.tree = {}  # type: Dict[str, Node]
+        """
+        A tree representing the hierarchy of the instances of 
+        ResourceDefinitions. ResourceDefinitions use these nodes to
+        traverse their hierarchy.
+         
+        Do not use the normal python class hierarchy as it is global,
+        thus unreliable if you run different apps with different
+        schemas (for example, an extension that is only added on the
+        third app adds a new type of user).
+        """
+        for ResourceDef in self.config['RESOURCE_DEFINITIONS']:
+            resource_def = ResourceDef(self.db, self.common_db, self.auth)
+            self.register_blueprint(resource_def)
+            # todo should we use resource_def.name instead of type?
+            # are we going to have collisions? (2 resource_def -> 1 schema)
+            self.resources[resource_def.type] = resource_def
+            self.tree[resource_def.type] = Node(resource_def.type)
+        # Link tree nodes between them
+        for _type, node in self.tree.items():
+            resource_def = self.resources[_type]
+            _, Parent, *superclasses = inspect.getmro(resource_def.__class__)
+            if Parent is not ResourceDefinition:
+                node.parent = self.tree[Parent.type]
+
+    @staticmethod
+    def _handle_standard_error(e: HTTPException):
+        """
+        Handles HTTPExceptions by transforming them to JSON.
+        """
+        data = {'message': e.description, 'code': e.code, '@type': e.__class__.__name__}
+        response = jsonify(data)
+        response.status_code = e.code
+        return response
+
+    @staticmethod
+    def _get_exc_class_and_code(exc_class_or_code):
+        # We enforce Flask to allow us to handle HTTPExceptions
+        exc_class, _ = super(Teal, Teal)._get_exc_class_and_code(exc_class_or_code)
+        return exc_class, None
+
+
+def prefixed_database_factory(Config: Type[ConfigClass], databases: Iterable[Tuple[str, str]],
+                              App: Type[Teal] = Teal) -> DispatcherMiddleware:
+    """
+    A factory of Teals. Allows creating as many Teal apps as databases
+    from the DefaultConfig.DATABASES, setting each Teal app to an URL in
+    the following way:
+    - / -> to the Teal app that uses MONGO_DBNAME
+    - /db1/... -> to the Teal app with db1
+    - /db2/... -> to the Teal app with db2
+    And so on.
+
+    DefaultConfig is used to configure the root Teal app.
+    Optionally, each other app can have a custom Config. Pass them in
+    the `configs` dictionary. Apps with no Config will default to the
+    DefaultConfig.
+
+    :param Config: The configuration class to use with each database
+    :param databases: An iterable where each position if a tuple
+                      with the database name and the mongo name.
+    :param App: A Teal class.
+    :return: A WSGI middleware where an app without database is default
+    and the rest prefixed with their database name.
+    """
+    default = App(config=Config())
+    apps = {
+        '/{}'.format(db): App(config=Config(db=db, mongo_db=db_in_mongo))
+        for db, db_in_mongo in databases
+    }
+    return DispatcherMiddleware(default, apps)

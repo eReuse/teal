@@ -1,0 +1,75 @@
+from base64 import b64encode
+
+from pymongo.database import Database
+from werkzeug.exceptions import Unauthorized
+
+from teal.auth import TokenAuth
+from teal.teal import Teal, prefixed_database_factory
+from teal.tests.client import Client
+from teal.tests.conftest import Car, CarDef, CarModel, Device, DeviceDef, DeviceModel, TestConfig, \
+    TestDatabaseFactory
+
+
+def test_schema():
+    """Initializes two schemas with inheritance."""
+    device_schema = Device()
+    device_model = DeviceModel()
+    car_schema = Car()
+    car_model = CarModel()
+    assert device_schema.type == device_model.type == 'Device'
+    assert car_schema.type == car_model.type == 'Car'
+    assert car_schema.Meta == car_model.Meta == device_model.Meta
+
+
+def test_resource_def_init(foo_db: Database):
+    """Tests initializing a resource."""
+    car_def = CarDef(foo_db, foo_db, TokenAuth())
+    assert car_def.schema.type == 'Car'
+    assert car_def.model.type == 'Car'
+
+
+def test_init_app(app: Teal):
+    """Inits the app and resources."""
+    assert isinstance(app.resources['Device'], DeviceDef)
+    assert isinstance(app.resources['Car'], CarDef)
+    assert app.tree['Device'].parent is None
+    assert app.tree['Device'].descendants == (app.tree['Car'],)
+    assert app.tree['Car'].parent == app.tree['Device']
+
+    assert len(app.view_functions) == 3
+    assert 'CarDef.main' in app.view_functions
+    assert 'DeviceDef.main' in app.view_functions
+
+
+def test_get(client: Client):
+    """Test basic GET operations"""
+
+    # Get endpoint
+    data, _ = client.get(res=Device.type)
+    assert data == {'many-foo': 'bar'}
+
+    # Get item in endpoint
+    data, _ = client.get(res=Device.type, item=15)
+    assert data == {'foo': 'bar'}
+
+
+def test_auth_view(client: Client):
+    """Tests accessing a view that requires authorization."""
+    # Get to a non-auth endpoint
+    client.get(res=Device.type, item=15, status=200)
+    # Let's perform GET with an auth endpoint
+    client.get(res=Car.type, item=20, status=Unauthorized)  # No token
+    client.get(res=Car.type, item=20, token='wrong format', status=Unauthorized)  # Wrong format
+    data, _ = client.get(res=Car.type, item=20, token=b64encode(b'nok:').decode(),
+                         status=Unauthorized)  # Wrong cred.
+    data, _ = client.get(res=Car.type, item=20, token=b64encode(b'ok:').decode())  # OK
+    assert data == {'doors': 4, 'id': 20}
+
+
+def test_prefixed_database_factory():
+    """Tests using the database factory middleware."""
+    db_factory = TestDatabaseFactory()
+    apps = prefixed_database_factory(TestConfig, db_factory.dbs(), Teal)
+    assert isinstance(apps.app, Teal)
+    assert all(isinstance(app, Teal) for app in apps.mounts.values())
+    # todo perform GET or something

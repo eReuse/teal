@@ -10,7 +10,18 @@ setup(
     author_email='xavier@bustawin.com',
     description='RESTful Flask for big applications.',
     install_requires=[
-        'flask>=0.11'
+        'flask>=0.11',
+        'marshmallow',
+        'ereuse-utils',
+        'flask-pymongo',
+        'anytree',
+        'boltons',
+        'marshmallow-mongoengine',
+        'pydash'
+    ],
+    tests_requires=[
+        'pytest',
+        'pytest-datadir'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
