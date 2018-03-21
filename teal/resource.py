@@ -3,26 +3,97 @@ from typing import Type
 
 from boltons.typeutils import classproperty
 from ereuse_utils.naming import Naming
+from flasgger import SwaggerView
 from flask import Blueprint
-from flask.views import MethodView
-from marshmallow import Schema as MarshmallowSchema, SchemaOpts as MarshmallowSchemaOpts, fields
+from marshmallow import Schema as MarshmallowSchema, SchemaOpts as MarshmallowSchemaOpts
 
 from teal.auth import Authentication
 from teal.db import Collection, Database
 
 
-class ResourceView(MethodView):
+class SchemaOpts(MarshmallowSchemaOpts):
+    """
+    Subclass of Marshmallow's SchemaOpts that provides
+    options for Teal's schemas.
+    """
+
+    def __init__(self, meta, ordered=False):
+        super().__init__(meta, ordered)
+        self.PREFIX = meta.PREFIX
+
+
+class Schema(MarshmallowSchema):
+    """
+    The definition of the fields of a resource.
+    """
+    OPTIONS_CLASS = SchemaOpts
+
+    class Meta:
+        PREFIX = None
+        """Optional. A prefix for the type; ex. devices:Computer."""
+
+    # noinspection PyMethodParameters
+    @classproperty
+    def type(cls: Type['Schema']) -> str:
+        """The type for this schema, auto-computed from its name."""
+        name = cls.mro()[1].__name__ if 'Model' in cls.__name__ else cls.__name__
+        return Naming.new_type(name, cls.Meta.PREFIX)
+
+    # noinspection PyMethodParameters
+    @classproperty
+    def resource(cls: Type['Schema']) -> str:
+        """The resource name of this schema."""
+        return Naming.resource(cls.type)
+
+
+class ResourceView(SwaggerView):
     """
     A REST interface for resources.
     """
-    def __init__(self, definition: 'ResourceDefinition') -> None:
+
+    def __init__(self, definition: 'ResourceDefinition', **kwargs) -> None:
         self.resource_def = definition
         """The ResourceDefinition tied to this view."""
         self.collection = definition.collection
         """The Mongo collection tied to this view."""
         super().__init__()
 
+    @classmethod
+    def as_view(cls, name, *class_args, **class_kwargs):
+        definition = class_kwargs['definition']  # type: ResourceDefinition
+        cls.definitions = {
+            definition.SCHEMA.type: definition.SCHEMA
+        }
+        """
+        Input parameters, through body or in the URL query. You can
+        override them in each endpoint like we do in :meth:`.get` 
+        """
+        cls.responses = {
+            200: {
+                'description': 'A Schema.',
+                'schema': definition.SCHEMA
+            }
+        }
+        """
+        The default response for these endpoints. You can override
+        it per endpoint.
+        """
+        if definition.AUTH:
+            auth = class_kwargs['auth']  # type: Authentication
+            cls.security = auth.SWAGGER
+            """The security endpoint for this view."""
+        return super().as_view(name, *class_args, **class_kwargs)
+
     def get(self, id):
+        """
+        Get a collection of resources or a specific one.
+
+        ---
+        parameters:
+          - name: id
+            in: path
+            description: The identifier of the resource.
+        """
         if id:
             response = self.one(id)
         else:
@@ -50,44 +121,6 @@ class ResourceView(MethodView):
 
     def patch(self, id):
         pass
-
-
-class SchemaOpts(MarshmallowSchemaOpts):
-    """
-    Subclass of Marshmallow's SchemaOpts that provides
-    options for Teal's schemas.
-    """
-
-    def __init__(self, meta):
-        super().__init__(meta)
-        self.PREFIX = meta.PREFIX
-
-
-class Schema(MarshmallowSchema):
-    """
-    The definition of the fields of a resource.
-    """
-    OPTIONS_CLASS = SchemaOpts
-
-    created = fields.DateTime()
-    updated = fields.DateTime()
-
-    class Meta:
-        PREFIX = None
-        """Optional. A prefix for the type; ex. devices:Computer."""
-
-    # noinspection PyMethodParameters
-    @classproperty
-    def type(cls: Type['Schema']) -> str:
-        """The type for this schema, auto-computed from its name."""
-        name = cls.mro()[1].__name__ if 'Model' in cls.__name__ else cls.__name__
-        return Naming.new_type(name, cls.Meta.PREFIX)
-
-    # noinspection PyMethodParameters
-    @classproperty
-    def resource(cls: Type['Schema']) -> str:
-        """The resource name of this schema."""
-        return Naming.resource(cls.type)
 
 
 class Converters(Enum):
@@ -154,7 +187,7 @@ class ResourceDefinition(Blueprint):
         self.model = self.MODEL()
         self.collection = Collection(self.COLLECTION, db, getattr(self, 'db_schema', 'schema'))
         # Views
-        view = self.RESOURCE_VIEW.as_view('main', **{'definition': self})
+        view = self.RESOURCE_VIEW.as_view('main', **{'definition': self, 'auth': auth})
         if self.AUTH:
             view = auth.requires_auth(view)
         self.add_url_rule('/', defaults={'id': None}, view_func=view, methods={'GET'})

@@ -9,21 +9,26 @@ setup(
     author='Xavier Bustamante Talavera',
     author_email='xavier@bustawin.com',
     description='RESTful Flask for big applications.',
-    install_requires=[
-        'flask>=0.11',
-        'marshmallow',
-        'ereuse-utils',
-        'flask-pymongo',
+    install_requires={
         'anytree',
+        'apispec',
         'boltons',
+        'ereuse-utils',
+        'ereuse-utils[naming]',
+        'ereuse-utils[test]',
+        'flasgger',
+        'flask-pymongo',
+        'flask>=0.11',
+        'marshmallow-jsonschema',
         'marshmallow-mongoengine',
+        'marshmallow>=3.0.0b7',
         'pydash'
-    ],
-    tests_requires=[
+    },
+    tests_requires={
         'pytest',
         'pytest-datadir'
-    ],
-    classifiers=[
+    },
+    classifiers={
         'Development Status :: 4 - Beta',
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
@@ -33,5 +38,5 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
         'Topic :: Software Development :: Libraries :: Python Modules'
-    ],
+    },
 )

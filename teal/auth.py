@@ -19,6 +19,14 @@ class Authentication:
        teal can use it.
     """
 
+    SWAGGER = {
+        'type': 'http',
+        'description:': 'HTTP Basic scheme',
+        'name': 'Authorization',
+        'in': 'header',
+        'scheme': 'basic'
+    }
+
     @classmethod
     def requires_auth(cls, f: Callable):
         """
@@ -57,6 +65,9 @@ class Authentication:
 
 
 class TokenAuth(Authentication):
+    SWAGGER = Authentication.SWAGGER.copy()
+    SWAGGER['description'] = 'Basic scheme with token.'
+
     def authenticate(self, token: str, *args, **kw) -> object:
         """
         The result of this method is

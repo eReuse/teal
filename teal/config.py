@@ -22,6 +22,16 @@ class Config:
     Only useful when using middlewares.
     """
 
+    SWAGGER = {
+        'info': {
+            'title': 'Teal API',
+        }
+    }
+    """
+    Swagger definition object. Use values from `here <https://github.com
+    /rochacbruno/flasgger#initializing-flasgger-with-default-data>`_ 
+    """
+
     def __init__(self, db: str = None, mongo_db: str = None) -> None:
         """
         :param mongo_db: Optional. Set the default mongo database.

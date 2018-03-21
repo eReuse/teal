@@ -100,6 +100,12 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# Pytest
+.pytest_cache/
+
+# Other
 .idea/
 .DS_Store
 /app.py
+

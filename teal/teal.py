@@ -3,7 +3,9 @@ from typing import Dict, Iterable, Tuple, Type
 
 from anytree import Node
 from ereuse_utils import ensure_utf8
-from flask import Flask, jsonify
+from flasgger import Swagger
+from flask import Flask, Response, jsonify
+from marshmallow_jsonschema import JSONSchema
 from werkzeug.exceptions import HTTPException
 from werkzeug.wsgi import DispatcherMiddleware
 
@@ -40,6 +42,9 @@ class Teal(Flask):
         self.auth = Auth()
         self.load_resources()
         self.register_error_handler(HTTPException, self._handle_standard_error)
+        self.swag = Swagger(self)
+        self.add_url_rule('/schemas', view_func=self.view_schemas, methods={'GET'})
+        self.json_schema = JSONSchema()
 
     # noinspection PyAttributeOutsideInit
     def load_resources(self):
@@ -78,16 +83,29 @@ class Teal(Flask):
         """
         Handles HTTPExceptions by transforming them to JSON.
         """
-        data = {'message': e.description, 'code': e.code, '@type': e.__class__.__name__}
-        response = jsonify(data)
-        response.status_code = e.code
-        return response
+        try:
+            data = {'message': e.description, 'code': e.code, '@type': e.__class__.__name__}
+        except AttributeError as e:
+            return Response(str(e), status=500)
+        else:
+            response = jsonify(data)
+            response.status_code = e.code
+            return response
 
     @staticmethod
     def _get_exc_class_and_code(exc_class_or_code):
         # We enforce Flask to allow us to handle HTTPExceptions
         exc_class, _ = super(Teal, Teal)._get_exc_class_and_code(exc_class_or_code)
         return exc_class, None
+
+    def view_schemas(self):
+        """Return all schemas in custom JSON Schema format."""
+        # todo decide if finally use this
+        schemas = {
+            r.schema.type: self.json_schema.dump(r.schema).data
+            for r in self.resources.values()
+        }
+        return jsonify(schemas)
 
 
 def prefixed_database_factory(Config: Type[ConfigClass], databases: Iterable[Tuple[str, str]],

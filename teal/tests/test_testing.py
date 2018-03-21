@@ -1,13 +1,19 @@
 from base64 import b64encode
 
+import pytest
 from pymongo.database import Database
 from werkzeug.exceptions import Unauthorized
 
 from teal.auth import TokenAuth
 from teal.teal import Teal, prefixed_database_factory
 from teal.tests.client import Client
-from teal.tests.conftest import Car, CarDef, CarModel, Device, DeviceDef, DeviceModel, TestConfig, \
-    TestDatabaseFactory
+from teal.tests.conftest import Car, CarDef, CarModel, Device, DeviceDef, DeviceModel, \
+    TestConfig, TestDatabaseFactory, TestTokenAuth
+
+
+@pytest.fixture()
+def app() -> Teal:
+    return Teal(config=TestConfig(db='foo', mongo_db='teal_foo'), Auth=TestTokenAuth)
 
 
 def test_schema():
@@ -36,9 +42,17 @@ def test_init_app(app: Teal):
     assert app.tree['Device'].descendants == (app.tree['Car'],)
     assert app.tree['Car'].parent == app.tree['Device']
 
-    assert len(app.view_functions) == 3
-    assert 'CarDef.main' in app.view_functions
-    assert 'DeviceDef.main' in app.view_functions
+    views = {
+        'flasgger.static',  # flasgger stuff
+        'flasgger.apidocs',
+        'flasgger.apispec_1',
+        'flasgger.<lambda>',
+        'DeviceDef.main',  # resource view for device
+        'CarDef.main',  # resource view for car
+        'static',  # flask's default static endpoint
+        'view_schemas'  # json schema-like views
+    }
+    assert views == set(app.view_functions.keys())
 
 
 def test_get(client: Client):
@@ -58,11 +72,14 @@ def test_auth_view(client: Client):
     # Get to a non-auth endpoint
     client.get(res=Device.type, item=15, status=200)
     # Let's perform GET with an auth endpoint
-    client.get(res=Car.type, item=20, status=Unauthorized)  # No token
-    client.get(res=Car.type, item=20, token='wrong format', status=Unauthorized)  # Wrong format
-    data, _ = client.get(res=Car.type, item=20, token=b64encode(b'nok:').decode(),
-                         status=Unauthorized)  # Wrong cred.
-    data, _ = client.get(res=Car.type, item=20, token=b64encode(b'ok:').decode())  # OK
+    # No token
+    client.get(res=Car.type, item=20, status=Unauthorized)
+    # Wrong format
+    client.get(res=Car.type, item=20, token='wrong format', status=Unauthorized)
+    # Wrong credentials
+    client.get(res=Car.type, item=20, token=b64encode(b'nok:').decode(), status=Unauthorized)
+    # OK
+    data, _ = client.get(res=Car.type, item=20, token=b64encode(b'ok:').decode())
     assert data == {'doors': 4, 'id': 20}
 
 

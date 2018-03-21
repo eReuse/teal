@@ -16,12 +16,20 @@ class RangedNumber(Number):
     def __init__(self, as_string=False, min: int = None, max: int = None, **kwargs):
         self.min = min
         self.max = max
+        kwargs['minimum'] = min
+        kwargs['maxiumum'] = max
+        kwargs['type'] = 'integer'
         super().__init__(as_string, **kwargs)
 
     def _format_num(self, value):
         number = super()._format_num(value)
         if not in_range(number, self.min, self.max):
             self.fail('range')
+
+    def _jsonschema_type_mapping(self):
+        return {
+            'type': 'rangedNumber',
+        }
 
 
 class Natural(RangedNumber):
@@ -37,3 +45,8 @@ class Natural(RangedNumber):
 
     def __init__(self, as_string=False, max: int = None, **kwargs):
         super().__init__(as_string, 0, max, **kwargs)
+
+    def _jsonschema_type_mapping(self):
+        return {
+            'type': 'natural',
+        }
