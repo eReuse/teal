@@ -7,15 +7,14 @@ from werkzeug.exceptions import Unauthorized
 
 from teal import fields
 from teal.auth import TokenAuth
-from teal.config import Config, DatabaseFactory
-from teal.db import Database
+from teal.config import Config
 from teal.fields import RangedNumber
-from teal.resource import Converters, ResourceDefinition, ResourceView, Schema
+from teal.resource import Converters, ResourceDefinition, Schema, View
 from teal.teal import Teal
 from teal.tests.client import Client
 
 
-class DeviceView(ResourceView):
+class DeviceView(View):
     def one(self, id):
         assert id == 15
         return jsonify({'foo': 'bar'})
@@ -66,7 +65,7 @@ class CarModel(Car):
     license_plate = m_fields.Str()
 
 
-class CarView(ResourceView):
+class CarView(View):
     def one(self, id):
         assert id == 20
         return jsonify({'id': 20, 'doors': 4})
@@ -81,7 +80,7 @@ class CarDef(DeviceDef):
 
 class TestConfig(Config):
     RESOURCE_DEFINITIONS = [DeviceDef, CarDef]
-    DATABASE = 'foo'
+    DATABASE = 'sqlite:////tmp/test.db'
 
 
 class TestTokenAuth(TokenAuth):
@@ -101,13 +100,3 @@ def client(app: Teal) -> Client:
 @pytest.fixture()
 def mongo_client():
     return MongoClient()
-
-
-@pytest.fixture()
-def foo_db(mongo_client: MongoClient) -> Database:
-    return mongo_client.test_database
-
-
-class TestDatabaseFactory(DatabaseFactory):
-    DATABASES = {'foo', 'bar'}
-    MONGO_DB_PREFIX = 'tteal_'

@@ -1,19 +1,18 @@
 from base64 import b64encode
 
 import pytest
-from pymongo.database import Database
 from werkzeug.exceptions import Unauthorized
 
 from teal.auth import TokenAuth
 from teal.teal import Teal, prefixed_database_factory
 from teal.tests.client import Client
 from teal.tests.conftest import Car, CarDef, CarModel, Device, DeviceDef, DeviceModel, \
-    TestConfig, TestDatabaseFactory, TestTokenAuth
+    TestConfig, TestTokenAuth
 
 
 @pytest.fixture()
 def app() -> Teal:
-    return Teal(config=TestConfig(db='foo', mongo_db='teal_foo'), Auth=TestTokenAuth)
+    return Teal(config=TestConfig(), Auth=TestTokenAuth)
 
 
 def test_schema():
@@ -27,11 +26,10 @@ def test_schema():
     assert car_schema.Meta == car_model.Meta == device_model.Meta
 
 
-def test_resource_def_init(foo_db: Database):
+def test_resource_def_init():
     """Tests initializing a resource."""
-    car_def = CarDef(foo_db, foo_db, TokenAuth())
+    car_def = CarDef(TokenAuth())
     assert car_def.schema.type == 'Car'
-    assert car_def.model.type == 'Car'
 
 
 def test_init_app(app: Teal):
@@ -85,8 +83,8 @@ def test_auth_view(client: Client):
 
 def test_prefixed_database_factory():
     """Tests using the database factory middleware."""
-    db_factory = TestDatabaseFactory()
-    apps = prefixed_database_factory(TestConfig, db_factory.dbs(), Teal)
+    dbs = ('foo', 'sqlite:////tmp/foo.db'), ('bar', 'sqlite:////tmp/bar.db')
+    apps = prefixed_database_factory(TestConfig, dbs, Teal)
     assert isinstance(apps.app, Teal)
     assert all(isinstance(app, Teal) for app in apps.mounts.values())
     # todo perform GET or something

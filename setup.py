@@ -17,10 +17,9 @@ setup(
         'ereuse-utils[naming]',
         'ereuse-utils[test]',
         'flasgger',
-        'flask-pymongo',
         'flask>=0.11',
+        'flask-sqlalchemy',
         'marshmallow-jsonschema',
-        'marshmallow-mongoengine',
         'marshmallow>=3.0.0b7',
         'pydash'
     },

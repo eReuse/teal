@@ -7,8 +7,8 @@ from flasgger import SwaggerView
 from flask import Blueprint
 from marshmallow import Schema as MarshmallowSchema, SchemaOpts as MarshmallowSchemaOpts
 
-from teal.auth import Authentication
-from teal.db import Collection, Database
+from teal.auth import Auth
+from teal.db import Model
 
 
 class SchemaOpts(MarshmallowSchemaOpts):
@@ -46,7 +46,7 @@ class Schema(MarshmallowSchema):
         return Naming.resource(cls.type)
 
 
-class ResourceView(SwaggerView):
+class View(SwaggerView):
     """
     A REST interface for resources.
     """
@@ -54,8 +54,8 @@ class ResourceView(SwaggerView):
     def __init__(self, definition: 'ResourceDefinition', **kwargs) -> None:
         self.resource_def = definition
         """The ResourceDefinition tied to this view."""
-        self.collection = definition.collection
-        """The Mongo collection tied to this view."""
+        self.Model = definition.MODEL
+        """The Model tied to this view."""
         super().__init__()
 
     @classmethod
@@ -79,7 +79,7 @@ class ResourceView(SwaggerView):
         it per endpoint.
         """
         if definition.AUTH:
-            auth = class_kwargs['auth']  # type: Authentication
+            auth = class_kwargs['auth']  # type: Auth
             cls.security = auth.SWAGGER
             """The security endpoint for this view."""
         return super().as_view(name, *class_args, **class_kwargs)
@@ -102,13 +102,12 @@ class ResourceView(SwaggerView):
 
     def one(self, id):
         """GET one specific resource (ex. /cars/1)."""
-        return self.collection.one(id)
 
-    @Authentication.requires_auth
+    @Auth.requires_auth
     def find(self):
         """GET a list of resources (ex. /cars)."""
         # todo pagination, sorting
-        return self.collection.find({})
+        return self.Model.query.filter_by()
 
     def post(self):
         pass
@@ -142,16 +141,13 @@ class ResourceDefinition(Blueprint):
     :class:`flask.blueprints.Blueprint` that provides everything
     needed to set a REST endpoint.
     """
-    RESOURCE_VIEW = ResourceView  # type: Type[ResourceView]
+    RESOURCE_VIEW = View  # type: Type[View]
     """Resource view linked to this definition."""
     SCHEMA = Schema  # type: Type[Schema]
     """The Schema that validates a submitting resource at the entry point."""
-    USE_COMMON_DB = None  # type: bool
-    """Database to use. If none then the default database is used.
-     Only meaningful when using multiple databases."""
     COLLECTION = None  # type: str or None
     """Mandatory. The name of a collection to use."""
-    MODEL = None  # type: Type[Schema]
+    MODEL = None  # type: Type[Model]
     """
     A schema that validates a submitting resource before saving 
     it into the db.
@@ -173,8 +169,7 @@ class ResourceDefinition(Blueprint):
     ``uuid`` will return an ``UUID`` object.
     """
 
-    def __init__(self, db: Database, common_db: Database, auth: Authentication,
-                 import_name=__package__, name=None, static_folder=None,
+    def __init__(self, auth: Auth, import_name=__package__, name=None, static_folder=None,
                  static_url_path=None, template_folder=None, url_prefix=None, subdomain=None,
                  url_defaults=None, root_path=None):
         assert self.COLLECTION, 'Have you defined collection?'
@@ -182,10 +177,7 @@ class ResourceDefinition(Blueprint):
         url_prefix = url_prefix or '/{}'.format(self.resource)
         super().__init__(name, import_name, static_folder, static_url_path, template_folder,
                          url_prefix, subdomain, url_defaults, root_path)
-        db = common_db if self.USE_COMMON_DB else db
         self.schema = self.SCHEMA()
-        self.model = self.MODEL()
-        self.collection = Collection(self.COLLECTION, db, getattr(self, 'db_schema', 'schema'))
         # Views
         view = self.RESOURCE_VIEW.as_view('main', **{'definition': self, 'auth': auth})
         if self.AUTH:

@@ -5,7 +5,7 @@ from flask import current_app, g, request
 from werkzeug.exceptions import Unauthorized
 
 
-class Authentication:
+class Auth:
     """
     Authentication handler for Teal.
 
@@ -64,8 +64,8 @@ class Authentication:
         raise NotImplementedError()
 
 
-class TokenAuth(Authentication):
-    SWAGGER = Authentication.SWAGGER.copy()
+class TokenAuth(Auth):
+    SWAGGER = Auth.SWAGGER.copy()
     SWAGGER['description'] = 'Basic scheme with token.'
 
     def authenticate(self, token: str, *args, **kw) -> object:

@@ -51,7 +51,7 @@ class TestConfig(Config):
 
 @pytest.fixture()
 def app() -> Teal:
-    return Teal(config=TestConfig(db='foo', mongo_db='teal_foo'), Auth=TestTokenAuth)
+    return Teal(config=TestConfig(), Auth=TestTokenAuth)
 
 
 def test_nested(app: Teal):

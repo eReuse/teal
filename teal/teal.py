@@ -5,13 +5,13 @@ from anytree import Node
 from ereuse_utils import ensure_utf8
 from flasgger import Swagger
 from flask import Flask, Response, jsonify
+from flask_sqlalchemy import SQLAlchemy
 from marshmallow_jsonschema import JSONSchema
 from werkzeug.exceptions import HTTPException
 from werkzeug.wsgi import DispatcherMiddleware
 
-from teal.auth import Authentication
+from teal.auth import Auth
 from teal.config import Config as ConfigClass
-from teal.db import Database as DatabaseClass
 from teal.resource import ResourceDefinition
 from teal.tests.client import Client
 
@@ -23,22 +23,15 @@ class Teal(Flask):
     """
     test_client_class = Client
 
-    def __init__(self, config: ConfigClass, import_name=__package__, static_path=None,
-                 static_url_path=None, static_folder='static', template_folder='templates',
-                 instance_path=None, instance_relative_config=False, root_path=None,
-                 Database: Type[DatabaseClass] = DatabaseClass,
-                 Auth: Type[Authentication] = Authentication):
+    def __init__(self, config: ConfigClass, import_name=__package__,
+                 static_path=None, static_url_path=None, static_folder='static',
+                 template_folder='templates', instance_path=None, instance_relative_config=False,
+                 root_path=None, Auth: Type[Auth] = Auth):
         ensure_utf8(self.__class__.__name__)
         super().__init__(import_name, static_path, static_url_path, static_folder, template_folder,
                          instance_path, instance_relative_config, root_path)
         self.config.from_object(config)
         # Load databases
-        self.db = Database(self)
-        if 'COMMON_DBNAME' in self.config:
-            # Uses a secondary database shared with the middlewares
-            # if any
-            self.common_db = Database(self, config_prefix='COMMON')
-
         self.auth = Auth()
         self.load_resources()
         self.register_error_handler(HTTPException, self._handle_standard_error)
@@ -65,7 +58,7 @@ class Teal(Flask):
         third app adds a new type of user).
         """
         for ResourceDef in self.config['RESOURCE_DEFINITIONS']:
-            resource_def = ResourceDef(self.db, self.common_db, self.auth)
+            resource_def = ResourceDef(self.auth)
             self.register_blueprint(resource_def)
             # todo should we use resource_def.name instead of type?
             # are we going to have collisions? (2 resource_def -> 1 schema)
@@ -108,15 +101,17 @@ class Teal(Flask):
         return jsonify(schemas)
 
 
-def prefixed_database_factory(Config: Type[ConfigClass], databases: Iterable[Tuple[str, str]],
+def prefixed_database_factory(Config: Type[ConfigClass],
+                              databases: Iterable[Tuple[str, str]],
                               App: Type[Teal] = Teal) -> DispatcherMiddleware:
     """
     A factory of Teals. Allows creating as many Teal apps as databases
     from the DefaultConfig.DATABASES, setting each Teal app to an URL in
     the following way:
-    - / -> to the Teal app that uses MONGO_DBNAME
-    - /db1/... -> to the Teal app with db1
-    - /db2/... -> to the Teal app with db2
+    - / -> to the Teal app that uses the
+      :attr:`teal.config.Config.SQLALCHEMY_DATABASE_URI` set in config.
+    - /db1/... -> to the Teal app with db1 as default
+    - /db2/... -> to the Teal app with db2 as default
     And so on.
 
     DefaultConfig is used to configure the root Teal app.
@@ -125,15 +120,17 @@ def prefixed_database_factory(Config: Type[ConfigClass], databases: Iterable[Tup
     DefaultConfig.
 
     :param Config: The configuration class to use with each database
-    :param databases: An iterable where each position if a tuple
-                      with the database name and the mongo name.
+    :param databases: Names of the databases, where the first value is a
+                      valid  URI to use in the dispatcher middleware and
+                      the second value the SQLAlchemy URI referring to a
+                      database to use.
     :param App: A Teal class.
     :return: A WSGI middleware where an app without database is default
     and the rest prefixed with their database name.
     """
     default = App(config=Config())
     apps = {
-        '/{}'.format(db): App(config=Config(db=db, mongo_db=db_in_mongo))
-        for db, db_in_mongo in databases
+        '/{}'.format(db): App(config=Config(db=sql_uri))
+        for db, sql_uri in databases
     }
     return DispatcherMiddleware(default, apps)
