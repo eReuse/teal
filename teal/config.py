@@ -27,6 +27,14 @@ class Config:
     /2.3/binds/#referring-to-binds>`_ how bind your models to different
     databases.
     """
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    """
+    Disables flask-sqlalchemy notification system. 
+    Save resources and hides a warning by flask-sqlalchemy itself.
+    
+    See `this answer in Stackoverflow for more info
+    <https://stackoverflow.com/a/33790196>`_. 
+    """
 
     SWAGGER = {
         'info': {
@@ -40,7 +48,7 @@ class Config:
 
     def __init__(self, db: str = None) -> None:
         """
-        :param mongo_db: Optional. Set the default mongo database.
+        :param db: Optional. Set the ``SQLALCHEMY_DATABASE_URI`` param.
         """
         assert all(issubclass(r, resource.ResourceDefinition) for r in self.RESOURCE_DEFINITIONS)
         if db:

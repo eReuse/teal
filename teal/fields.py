@@ -1,5 +1,4 @@
-from marshmallow.fields import Number
-from pydash import in_range
+from marshmallow.fields import Integer, Number
 
 
 class RangedNumber(Number):
@@ -13,18 +12,21 @@ class RangedNumber(Number):
         'range': 'Number is not between range.'
     }
 
-    def __init__(self, as_string=False, min: int = None, max: int = None, **kwargs):
+    def __init__(self, min: float = None, max: float = None, **kwargs):
+        assert min is not None or max is not None, 'You have not set neither min or max.'
         self.min = min
         self.max = max
         kwargs['minimum'] = min
         kwargs['maxiumum'] = max
         kwargs['type'] = 'integer'
-        super().__init__(as_string, **kwargs)
+        super().__init__(**kwargs)
 
     def _format_num(self, value):
         number = super()._format_num(value)
-        if not in_range(number, self.min, self.max):
+        if self.min is not None and number < self.min or \
+                self.max is not None and number >= self.max:
             self.fail('range')
+        return number
 
     def _jsonschema_type_mapping(self):
         return {
@@ -32,19 +34,19 @@ class RangedNumber(Number):
         }
 
 
-class Natural(RangedNumber):
+class Natural(RangedNumber, Integer):
     """
     A natural number is a positive int. Optionally you can set a
     ``max``, which ensures the number is up to but not including
     ``max``.
     """
-    num_type = int
     default_error_messages = {
-        'invalid': 'Not a valid natural'
+        'invalid': 'Not a valid Natural number.'
     }
 
-    def __init__(self, as_string=False, max: int = None, **kwargs):
-        super().__init__(as_string, 0, max, **kwargs)
+    def __init__(self, min: int = 0, max: int = None):
+        assert min >= 0, 'Min can\'t be a negative if represents a Natural.'
+        super().__init__(min=min, max=max, strict=True)
 
     def _jsonschema_type_mapping(self):
         return {

@@ -7,16 +7,16 @@ from werkzeug.exceptions import HTTPException
 class Client(EreuseUtilsClient):
     """A REST interface to a Teal app."""
 
-    def open(self, uri: str, res: str = None, status: int or HTTPException = 200, accept=JSON,
-             content_type=JSON, item=None, headers: dict = None, token: str = None, **kw) \
-            -> (dict or str, Response):
+    def open(self, uri: str, res: str = None, status: int or HTTPException = 200, query: dict = {},
+             accept=JSON, content_type=JSON, item=None, headers: dict = None, token: str = None,
+             **kw) -> (dict or str, Response):
         headers = headers or {}
         if res:
             resource_url = self.application.resources[res].url_prefix + '/'
             uri = URL(uri).navigate(resource_url).to_text()
         if token:
             headers['Authorization'] = 'Basic {}'.format(token)
-        return super().open(uri, status, accept, content_type, item, headers, **kw)
+        return super().open(uri, status, query, accept, content_type, item, headers, **kw)
 
     def get(self, uri: str = '', res: str = None, query: dict = {},
             status: int or HTTPException = 200, item=None, accept: str = JSON,
@@ -46,26 +46,26 @@ class Client(EreuseUtilsClient):
         kw['token'] = token
         return super().get(uri, query, item, status, accept, headers, **kw)
 
-    def post(self, data: str or dict, uri: str = '', res: str = None,
+    def post(self, data: str or dict, uri: str = '', res: str = None, query: dict = {},
              status: int or HTTPException = 201, content_type: str = JSON, accept: str = JSON,
              headers: dict = None, token: str = None,
              **kw) -> (dict or str, Response):
         kw['res'] = res
         kw['token'] = token
-        return super().post(uri, data, status, content_type, accept, headers, **kw)
+        return super().post(uri, data, query, status, content_type, accept, headers, **kw)
 
-    def patch(self, data: str or dict, uri: str = '', res: str = None,
+    def patch(self, data: str or dict, uri: str = '', res: str = None, query: dict = {},
               item=None, status: int or HTTPException = 200, content_type: str = JSON,
               accept: str = JSON, token: str = None,
               headers: dict = None, **kw) -> (dict or str, Response):
         kw['res'] = res
         kw['token'] = token
-        return super().patch(uri, data, status, content_type, item, accept, headers, **kw)
+        return super().patch(uri, data, query, status, content_type, item, accept, headers, **kw)
 
-    def post_get(self, res: str, data: str or dict, status: int or HTTPException = 201,
-                 content_type: str = JSON, accept: str = JSON, headers: dict = None,
-                 key='id', token: str = None, **kw) \
+    def post_get(self, res: str, data: str or dict, query: dict = {},
+                 status: int or HTTPException = 201, content_type: str = JSON, accept: str = JSON,
+                 headers: dict = None, key='id', token: str = None, **kw) \
             -> (dict or str, Response):
         """Performs post and then gets the resource through its key."""
-        r, _ = self.post('', data, res, status, content_type, accept, token, headers, **kw)
+        r, _ = self.post('', data, res, query, status, content_type, accept, token, headers, **kw)
         return self.get(res=res, item=r[key])

@@ -21,7 +21,7 @@ setup(
         'flask-sqlalchemy',
         'marshmallow-jsonschema',
         'marshmallow>=3.0.0b7',
-        'pydash'
+        'webargs'
     },
     tests_requires={
         'pytest',

@@ -4,11 +4,13 @@ from typing import Type
 from boltons.typeutils import classproperty
 from ereuse_utils.naming import Naming
 from flasgger import SwaggerView
-from flask import Blueprint
+from flask import Blueprint, request
 from marshmallow import Schema as MarshmallowSchema, SchemaOpts as MarshmallowSchemaOpts
+from webargs.flaskparser import parser
+from werkzeug.exceptions import MethodNotAllowed
 
 from teal.auth import Auth
-from teal.db import Model
+from teal.db import Model, db
 
 
 class SchemaOpts(MarshmallowSchemaOpts):
@@ -36,7 +38,7 @@ class Schema(MarshmallowSchema):
     @classproperty
     def type(cls: Type['Schema']) -> str:
         """The type for this schema, auto-computed from its name."""
-        name = cls.mro()[1].__name__ if 'Model' in cls.__name__ else cls.__name__
+        name, *_ = cls.__name__.split('Schema')
         return Naming.new_type(name, cls.Meta.PREFIX)
 
     # noinspection PyMethodParameters
@@ -51,6 +53,12 @@ class View(SwaggerView):
     A REST interface for resources.
     """
 
+    class FindArgs(MarshmallowSchema):
+        """
+        Allowed arguments for the ``find``
+        method (GET collection) endpoint
+        """
+
     def __init__(self, definition: 'ResourceDefinition', **kwargs) -> None:
         self.resource_def = definition
         """The ResourceDefinition tied to this view."""
@@ -62,7 +70,10 @@ class View(SwaggerView):
     def as_view(cls, name, *class_args, **class_kwargs):
         definition = class_kwargs['definition']  # type: ResourceDefinition
         cls.definitions = {
-            definition.SCHEMA.type: definition.SCHEMA
+            # todo if we use the SCHEMA.type instead of the name
+            # flassger doesn't match it with the respones.200.schema
+            # below and dies
+            definition.SCHEMA.__name__: definition.SCHEMA
         }
         """
         Input parameters, through body or in the URL query. You can
@@ -97,29 +108,29 @@ class View(SwaggerView):
         if id:
             response = self.one(id)
         else:
-            response = self.find()
+            args = parser.parse(self.FindArgs(), request, locations={'querystring'})
+            response = self.find(args)
         return response
 
     def one(self, id):
         """GET one specific resource (ex. /cars/1)."""
+        raise MethodNotAllowed()
 
-    @Auth.requires_auth
-    def find(self):
+    def find(self, args: dict):
         """GET a list of resources (ex. /cars)."""
-        # todo pagination, sorting
-        return self.Model.query.filter_by()
+        raise MethodNotAllowed()
 
     def post(self):
-        pass
+        raise MethodNotAllowed()
 
     def delete(self, id):
-        pass
+        raise MethodNotAllowed()
 
     def put(self, id):
-        pass
+        raise MethodNotAllowed()
 
     def patch(self, id):
-        pass
+        raise MethodNotAllowed()
 
 
 class Converters(Enum):
@@ -145,13 +156,8 @@ class ResourceDefinition(Blueprint):
     """Resource view linked to this definition."""
     SCHEMA = Schema  # type: Type[Schema]
     """The Schema that validates a submitting resource at the entry point."""
-    COLLECTION = None  # type: str or None
-    """Mandatory. The name of a collection to use."""
-    MODEL = None  # type: Type[Model]
-    """
-    A schema that validates a submitting resource before saving 
-    it into the db.
-    """
+    MODEL = db.Model  # type: Type[Model]
+    """The database model."""
     AUTH = False
     """
     If true, authentication is required for ALL the endpoints of this 
@@ -169,15 +175,14 @@ class ResourceDefinition(Blueprint):
     ``uuid`` will return an ``UUID`` object.
     """
 
-    def __init__(self, auth: Auth, import_name=__package__, name=None, static_folder=None,
+    def __init__(self, auth: Auth, import_name=__package__, static_folder=None,
                  static_url_path=None, template_folder=None, url_prefix=None, subdomain=None,
                  url_defaults=None, root_path=None):
-        assert self.COLLECTION, 'Have you defined collection?'
-        name = name or self.__class__.__name__
+        self.schema = self.SCHEMA()
+        name = self.schema.type
         url_prefix = url_prefix or '/{}'.format(self.resource)
         super().__init__(name, import_name, static_folder, static_url_path, template_folder,
                          url_prefix, subdomain, url_defaults, root_path)
-        self.schema = self.SCHEMA()
         # Views
         view = self.RESOURCE_VIEW.as_view('main', **{'definition': self, 'auth': auth})
         if self.AUTH:

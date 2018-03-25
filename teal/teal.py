@@ -6,12 +6,15 @@ from ereuse_utils import ensure_utf8
 from flasgger import Swagger
 from flask import Flask, Response, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from marshmallow import ValidationError
 from marshmallow_jsonschema import JSONSchema
-from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import HTTPException, UnprocessableEntity
 from werkzeug.wsgi import DispatcherMiddleware
 
 from teal.auth import Auth
 from teal.config import Config as ConfigClass
+from teal.db import db as database
+from teal.request import Request
 from teal.resource import ResourceDefinition
 from teal.tests.client import Client
 
@@ -22,8 +25,9 @@ class Teal(Flask):
     MongoDB and Marshmallow.
     """
     test_client_class = Client
+    request_class = Request
 
-    def __init__(self, config: ConfigClass, import_name=__package__,
+    def __init__(self, config: ConfigClass, db: SQLAlchemy = database, import_name=__package__,
                  static_path=None, static_url_path=None, static_folder='static',
                  template_folder='templates', instance_path=None, instance_relative_config=False,
                  root_path=None, Auth: Type[Auth] = Auth):
@@ -35,9 +39,11 @@ class Teal(Flask):
         self.auth = Auth()
         self.load_resources()
         self.register_error_handler(HTTPException, self._handle_standard_error)
+        self.register_error_handler(ValidationError, self._handle_validation_error)
         self.swag = Swagger(self)
         self.add_url_rule('/schemas', view_func=self.view_schemas, methods={'GET'})
         self.json_schema = JSONSchema()
+        db.init_app(self)
 
     # noinspection PyAttributeOutsideInit
     def load_resources(self):
@@ -77,13 +83,24 @@ class Teal(Flask):
         Handles HTTPExceptions by transforming them to JSON.
         """
         try:
-            data = {'message': e.description, 'code': e.code, '@type': e.__class__.__name__}
+            data = {'message': e.description, 'code': e.code, 'type': e.__class__.__name__}
         except AttributeError as e:
             return Response(str(e), status=500)
         else:
             response = jsonify(data)
             response.status_code = e.code
             return response
+
+    @staticmethod
+    def _handle_validation_error(e: ValidationError):
+        data = {
+            'message': e.messages,
+            'code': UnprocessableEntity.code,
+            'type': e.__class__.__name__
+        }
+        response = jsonify(data)
+        response.status_code = UnprocessableEntity.code
+        return response
 
     @staticmethod
     def _get_exc_class_and_code(exc_class_or_code):
