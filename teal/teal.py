@@ -15,7 +15,7 @@ from teal.auth import Auth
 from teal.config import Config as ConfigClass
 from teal.db import db as database
 from teal.request import Request
-from teal.resource import ResourceDefinition
+from teal.resource import Resource
 from teal.tests.client import Client
 
 
@@ -47,7 +47,7 @@ class Teal(Flask):
 
     # noinspection PyAttributeOutsideInit
     def load_resources(self):
-        self.resources = {}  # type: Dict[str, ResourceDefinition]
+        self.resources = {}  # type: Dict[str, Resource]
         """
         The resources definitions loaded on this App, referenced by their
         type name.
@@ -74,7 +74,7 @@ class Teal(Flask):
         for _type, node in self.tree.items():
             resource_def = self.resources[_type]
             _, Parent, *superclasses = inspect.getmro(resource_def.__class__)
-            if Parent is not ResourceDefinition:
+            if Parent is not Resource:
                 node.parent = self.tree[Parent.type]
 
     @staticmethod

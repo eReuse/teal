@@ -44,9 +44,9 @@ class Natural(RangedNumber, Integer):
         'invalid': 'Not a valid Natural number.'
     }
 
-    def __init__(self, min: int = 0, max: int = None):
+    def __init__(self, min: int = 0, max: int = None, **kwargs):
         assert min >= 0, 'Min can\'t be a negative if represents a Natural.'
-        super().__init__(min=min, max=max, strict=True)
+        super().__init__(min=min, max=max, strict=True, **kwargs)
 
     def _jsonschema_type_mapping(self):
         return {

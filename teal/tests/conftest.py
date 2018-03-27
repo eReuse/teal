@@ -7,7 +7,7 @@ from marshmallow.fields import Nested, Str
 from teal.config import Config
 from teal.db import INHERIT_COND, Model, POLYMORPHIC_ID, POLYMORPHIC_ON
 from teal.fields import Natural
-from teal.resource import Converters, ResourceDefinition, Schema, View
+from teal.resource import Converters, Resource, Schema, View
 from teal.teal import Teal
 from teal.tests.client import Client
 
@@ -66,9 +66,9 @@ def f_config(config: Config, db: SQLAlchemy) -> Config:
             POLYMORPHIC_ON: type
         }
 
-    class DeviceDef(ResourceDefinition):
+    class DeviceDef(Resource):
         SCHEMA = DeviceSchema
-        RESOURCE_VIEW = DeviceView
+        VIEW = DeviceView
         MODEL = Device
         ID_CONVERTER = Converters.int
 
@@ -94,7 +94,7 @@ def f_config(config: Config, db: SQLAlchemy) -> Config:
 
     class ComponentDef(DeviceDef):
         SCHEMA = ComponentSchema
-        RESOURCE_VIEW = ComponentView
+        VIEW = ComponentView
         MODEL = Component
 
     class ComputerSchema(DeviceSchema):
@@ -115,7 +115,7 @@ def f_config(config: Config, db: SQLAlchemy) -> Config:
 
     class ComputerDef(DeviceDef):
         SCHEMA = ComputerSchema
-        RESOURCE_VIEW = ComputerView
+        VIEW = ComputerView
         MODEL = Computer
 
     config.RESOURCE_DEFINITIONS = DeviceDef, ComponentDef, ComputerDef

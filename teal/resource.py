@@ -59,7 +59,7 @@ class View(SwaggerView):
         method (GET collection) endpoint
         """
 
-    def __init__(self, definition: 'ResourceDefinition', **kwargs) -> None:
+    def __init__(self, definition: 'Resource', **kwargs) -> None:
         self.resource_def = definition
         """The ResourceDefinition tied to this view."""
         self.Model = definition.MODEL
@@ -68,7 +68,7 @@ class View(SwaggerView):
 
     @classmethod
     def as_view(cls, name, *class_args, **class_kwargs):
-        definition = class_kwargs['definition']  # type: ResourceDefinition
+        definition = class_kwargs['definition']  # type: Resource
         cls.definitions = {
             # todo if we use the SCHEMA.type instead of the name
             # flassger doesn't match it with the respones.200.schema
@@ -143,7 +143,7 @@ class Converters(Enum):
     uid = 'uuid'
 
 
-class ResourceDefinition(Blueprint):
+class Resource(Blueprint):
     """
     Main resource class. Defines the schema, views,
     authentication, database and collection of a resource.
@@ -152,7 +152,7 @@ class ResourceDefinition(Blueprint):
     :class:`flask.blueprints.Blueprint` that provides everything
     needed to set a REST endpoint.
     """
-    RESOURCE_VIEW = View  # type: Type[View]
+    VIEW = View  # type: Type[View]
     """Resource view linked to this definition."""
     SCHEMA = Schema  # type: Type[Schema]
     """The Schema that validates a submitting resource at the entry point."""
@@ -184,7 +184,7 @@ class ResourceDefinition(Blueprint):
         super().__init__(name, import_name, static_folder, static_url_path, template_folder,
                          url_prefix, subdomain, url_defaults, root_path)
         # Views
-        view = self.RESOURCE_VIEW.as_view('main', **{'definition': self, 'auth': auth})
+        view = self.VIEW.as_view('main', **{'definition': self, 'auth': auth})
         if self.AUTH:
             view = auth.requires_auth(view)
         self.add_url_rule('/', defaults={'id': None}, view_func=view, methods={'GET'})

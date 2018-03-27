@@ -2,7 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 from teal.auth import Auth
 from teal.db import POLYMORPHIC_ID, POLYMORPHIC_ON
-from teal.resource import ResourceDefinition, Schema, View
+from teal.resource import Resource, Schema, View
 
 
 def test_schema_type():
@@ -41,9 +41,9 @@ def test_resource_def_init(db: SQLAlchemy):
     class Foo(db.Model):
         id = db.Column(db.Integer, primary_key=True)
 
-    class FooDef(ResourceDefinition):
+    class FooDef(Resource):
         SCHEMA = FooSchema
-        RESOURCE_VIEW = FooView
+        VIEW = FooView
         MODEL = Foo
 
     foo_def = FooDef(Auth())

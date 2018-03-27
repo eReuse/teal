@@ -2,7 +2,7 @@ from ereuse_utils.test import ANY
 
 from teal.auth import TokenAuth
 from teal.config import Config
-from teal.resource import ResourceDefinition, Schema
+from teal.resource import Resource, Schema
 from teal.teal import Teal
 from teal.tests.client import Client
 
@@ -32,7 +32,7 @@ def test_swagger_auth():
     class FooSchema(Schema):
         pass
 
-    class FooDef(ResourceDefinition):
+    class FooDef(Resource):
         SCHEMA = FooSchema
         AUTH = True
 

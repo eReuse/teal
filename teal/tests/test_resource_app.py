@@ -11,7 +11,7 @@ from werkzeug.exceptions import MethodNotAllowed, NotFound, UnprocessableEntity
 
 from teal.config import Config
 from teal.fields import Natural
-from teal.resource import ResourceDefinition as ResourceDef
+from teal.resource import Resource as ResourceDef
 from teal.teal import Teal
 from teal.tests.client import Client
 from teal.tests.conftest import populated_db
@@ -73,39 +73,39 @@ def test_inheritance_access(fconfig: Config):
     def foo(*args, **kw):
         return jsonify(DUMMY_DICT)
 
-    DeviceDef.RESOURCE_VIEW.get = MagicMock(side_effect=foo)
-    ComponentDef.RESOURCE_VIEW.get = MagicMock(side_effect=foo)
-    ComputerDef.RESOURCE_VIEW.get = MagicMock(side_effect=foo)
+    DeviceDef.VIEW.get = MagicMock(side_effect=foo)
+    ComponentDef.VIEW.get = MagicMock(side_effect=foo)
+    ComputerDef.VIEW.get = MagicMock(side_effect=foo)
 
     client = Teal(config=fconfig).test_client()  # type: Client
 
     # Access any non-defined URI
     client.get(uri='/this-does-not-exist', status=NotFound)
-    assert DeviceDef.RESOURCE_VIEW.get.call_count == \
-           ComponentDef.RESOURCE_VIEW.get.call_count == \
-           ComputerDef.RESOURCE_VIEW.get.call_count == 0
+    assert DeviceDef.VIEW.get.call_count == \
+           ComponentDef.VIEW.get.call_count == \
+           ComputerDef.VIEW.get.call_count == 0
 
     # Access to a non-defined method for a resource
     client.post(res=DeviceDef.type, status=MethodNotAllowed, data=dict())
-    assert DeviceDef.RESOURCE_VIEW.get.call_count == \
-           ComponentDef.RESOURCE_VIEW.get.call_count == \
-           ComputerDef.RESOURCE_VIEW.get.call_count == 0
+    assert DeviceDef.VIEW.get.call_count == \
+           ComponentDef.VIEW.get.call_count == \
+           ComputerDef.VIEW.get.call_count == 0
 
     # Get top resource Device
     # Only device endpoint is called
     d, _ = client.get(res=DeviceDef.type)
     assert d == DUMMY_DICT
-    DeviceDef.RESOURCE_VIEW.get.assert_called_once_with(id=None)
-    assert ComponentDef.RESOURCE_VIEW.get.call_count == 0
-    assert ComputerDef.RESOURCE_VIEW.get.call_count == 0
+    DeviceDef.VIEW.get.assert_called_once_with(id=None)
+    assert ComponentDef.VIEW.get.call_count == 0
+    assert ComputerDef.VIEW.get.call_count == 0
 
     # Get computer
     # Only component endpoint is called
     d, _ = client.get(res=ComputerDef.type)
     assert d == DUMMY_DICT
-    assert DeviceDef.RESOURCE_VIEW.get.call_count == 1  # from before
-    assert ComponentDef.RESOURCE_VIEW.get.call_count == 0
-    ComputerDef.RESOURCE_VIEW.get.assert_called_once_with(id=None)
+    assert DeviceDef.VIEW.get.call_count == 1  # from before
+    assert ComponentDef.VIEW.get.call_count == 0
+    ComputerDef.VIEW.get.assert_called_once_with(id=None)
 
 
 def test_post(fconfig: Config, db: SQLAlchemy):
@@ -145,9 +145,9 @@ def test_post(fconfig: Config, db: SQLAlchemy):
     def find(_):
         return jsonify([_one(1)])
 
-    ComputerDef.RESOURCE_VIEW.post = MagicMock(side_effect=post)
-    ComputerDef.RESOURCE_VIEW.one = MagicMock(side_effect=one)
-    ComputerDef.RESOURCE_VIEW.find = MagicMock(side_effect=find)
+    ComputerDef.VIEW.post = MagicMock(side_effect=post)
+    ComputerDef.VIEW.one = MagicMock(side_effect=one)
+    ComputerDef.VIEW.find = MagicMock(side_effect=find)
 
     app = Teal(config=fconfig)
 
@@ -183,35 +183,35 @@ def test_item_path(fconfig: Config, db: SQLAlchemy):
         assert id == 1
         return Response(status=200)
 
-    DeviceDef.RESOURCE_VIEW.one = MagicMock(side_effect=cannot_find)
+    DeviceDef.VIEW.one = MagicMock(side_effect=cannot_find)
     app = Teal(config=fconfig)
     client = app.test_client()  # type: Client
     with populated_db(db, app):
         # All ok, we expect an int and got an int
         client.get(res=DeviceDef.type, item=1)
-        DeviceDef.RESOURCE_VIEW.one.assert_called_once_with(1)
+        DeviceDef.VIEW.one.assert_called_once_with(1)
         # Conversion of 'int' works in here
         client.get(res=DeviceDef.type, item='1')
-        assert DeviceDef.RESOURCE_VIEW.one.call_count == 2
+        assert DeviceDef.VIEW.one.call_count == 2
         # Anything else fails and our function is directly not executed
         client.get(res=DeviceDef.type, item='foo', status=NotFound)
-        assert DeviceDef.RESOURCE_VIEW.one.call_count == 2
+        assert DeviceDef.VIEW.one.call_count == 2
 
 
 def test_args(fconfig: Config):
     """Tests the handling of query arguments in the URL."""
     DeviceDef, *_ = fconfig.RESOURCE_DEFINITIONS  # type: Tuple[ResourceDef]
 
-    class FindArgsFoo(DeviceDef.RESOURCE_VIEW.FindArgs):
+    class FindArgsFoo(DeviceDef.VIEW.FindArgs):
         foo = Natural()
 
-    DeviceDef.RESOURCE_VIEW.FindArgs = FindArgsFoo
+    DeviceDef.VIEW.FindArgs = FindArgsFoo
 
     def find(args: dict):
         assert args == {'foo': 25}
         return Response(status=200)
 
-    DeviceDef.RESOURCE_VIEW.find = MagicMock(side_effect=find)
+    DeviceDef.VIEW.find = MagicMock(side_effect=find)
 
     client = Teal(config=fconfig).test_client()  # type: Client
 
@@ -228,7 +228,7 @@ def test_http_exception(fconfig: Config):
     """Tests correct handling of HTTP exceptions."""
     DeviceDef, *_ = fconfig.RESOURCE_DEFINITIONS  # type: Tuple[ResourceDef]
 
-    DeviceDef.RESOURCE_VIEW.get = MagicMock(side_effect=NotFound)
+    DeviceDef.VIEW.get = MagicMock(side_effect=NotFound)
     client = Teal(config=fconfig).test_client()  # type: Client
     d, _ = client.get(res=DeviceDef.type, status=NotFound)
     assert d == {

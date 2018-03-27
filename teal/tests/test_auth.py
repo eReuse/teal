@@ -7,7 +7,7 @@ from werkzeug.exceptions import Unauthorized
 from teal.auth import TokenAuth
 from teal.config import Config
 from teal.db import db
-from teal.resource import ResourceDefinition, Schema, View
+from teal.resource import Resource, Schema, View
 from teal.teal import Teal
 
 
@@ -30,9 +30,9 @@ def test_token_auth_view():
     class Foo(db.Model):
         id = db.Column(db.Integer, primary_key=True)
 
-    class FooDef(ResourceDefinition):
+    class FooDef(Resource):
         SCHEMA = FooSchema
-        RESOURCE_VIEW = FooView
+        VIEW = FooView
         MODEL = Foo
         AUTH = True
 

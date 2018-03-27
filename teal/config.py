@@ -12,7 +12,7 @@ class Config:
 
     Subclass and set here your config values.
     """
-    RESOURCE_DEFINITIONS = []  # type: List[Type['resource.ResourceDefinition']]
+    RESOURCE_DEFINITIONS = []  # type: List[Type['resource.Resource']]
     """
     A list of resource definitions to load.
     """
@@ -50,7 +50,7 @@ class Config:
         """
         :param db: Optional. Set the ``SQLALCHEMY_DATABASE_URI`` param.
         """
-        assert all(issubclass(r, resource.ResourceDefinition) for r in self.RESOURCE_DEFINITIONS)
+        assert all(issubclass(r, resource.Resource) for r in self.RESOURCE_DEFINITIONS)
         if db:
             assert URL(db), 'Set a valid URI'
             self.SQLALCHEMY_DATABASE_URI = db
