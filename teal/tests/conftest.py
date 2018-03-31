@@ -56,7 +56,6 @@ def f_config(config: Config, db: SQLAlchemy) -> Config:
         pass
 
     class Device(db.Model):
-        __tablename__ = 'devices'
         id = db.Column(db.Integer, primary_key=True)
         model = db.Column(db.String(80), nullable=True)
         type = db.Column(db.String)
@@ -76,10 +75,9 @@ def f_config(config: Config, db: SQLAlchemy) -> Config:
         pass
 
     class Component(Device):
-        __tablename__ = 'components'
         id = db.Column(db.Integer, db.ForeignKey(Device.id), primary_key=True)
 
-        parent_id = db.Column(db.Integer, db.ForeignKey('computers.id'))
+        parent_id = db.Column(db.Integer, db.ForeignKey('computer.id'))
         parent = db.relationship('Computer',
                                  backref=db.backref('components', lazy=True),
                                  primaryjoin='Component.parent_id == Computer.id')
@@ -101,7 +99,6 @@ def f_config(config: Config, db: SQLAlchemy) -> Config:
         components = Nested(ComponentSchema, many=True)
 
     class Computer(Device):
-        __tablename__ = 'computers'
         id = db.Column(db.Integer, db.ForeignKey(Device.id), primary_key=True)
         # backref creates a 'parent' relationship in Component
 
