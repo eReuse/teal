@@ -7,10 +7,10 @@ from unittest.mock import MagicMock
 from flask import Response, request
 from flask.json import jsonify
 from flask_sqlalchemy import SQLAlchemy
+from marshmallow.fields import Integer
 from werkzeug.exceptions import MethodNotAllowed, NotFound, UnprocessableEntity
 
 from teal.config import Config
-from teal.fields import Natural
 from teal.resource import Resource as ResourceDef
 from teal.teal import Teal
 from teal.client import Client
@@ -159,7 +159,7 @@ def test_post(fconfig: Config, db: SQLAlchemy):
         assert data == {
             'code': 422,
             'type': 'ValidationError',
-            'message': {'id': ['Not a valid Natural number.']}
+            'message': {'id': ['Not a valid integer.']}
         }
         # Get the first data
         data, _ = client.get(res=ComputerDef.type, item=1)
@@ -203,7 +203,7 @@ def test_args(fconfig: Config):
     DeviceDef, *_ = fconfig.RESOURCE_DEFINITIONS  # type: Tuple[ResourceDef]
 
     class FindArgsFoo(DeviceDef.VIEW.FindArgs):
-        foo = Natural()
+        foo = Integer()
 
     DeviceDef.VIEW.FindArgs = FindArgsFoo
 

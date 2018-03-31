@@ -2,12 +2,12 @@ from contextlib import contextmanager
 
 import pytest
 from flask_sqlalchemy import SQLAlchemy
-from marshmallow.fields import Nested, Str
+from marshmallow.fields import Nested, Str, Integer
+from marshmallow.validate import Range
 
 from teal.client import Client
 from teal.config import Config
 from teal.db import INHERIT_COND, Model, POLYMORPHIC_ID, POLYMORPHIC_ON
-from teal.fields import Natural
 from teal.resource import Converters, Resource, Schema, View
 from teal.teal import Teal
 
@@ -49,7 +49,7 @@ def f_config(config: Config, db: SQLAlchemy) -> Config:
     """
 
     class DeviceSchema(Schema):
-        id = Natural(min=1)
+        id = Integer(validate=Range(min=1))
         model = Str()
 
     class DeviceView(View):
