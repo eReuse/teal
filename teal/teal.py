@@ -12,11 +12,11 @@ from werkzeug.exceptions import HTTPException, UnprocessableEntity
 from werkzeug.wsgi import DispatcherMiddleware
 
 from teal.auth import Auth
+from teal.client import Client
 from teal.config import Config as ConfigClass
 from teal.db import db as database
 from teal.request import Request
 from teal.resource import Resource
-from teal.tests.client import Client
 
 
 class Teal(Flask):

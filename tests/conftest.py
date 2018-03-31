@@ -4,12 +4,12 @@ import pytest
 from flask_sqlalchemy import SQLAlchemy
 from marshmallow.fields import Nested, Str
 
+from teal.client import Client
 from teal.config import Config
 from teal.db import INHERIT_COND, Model, POLYMORPHIC_ID, POLYMORPHIC_ON
 from teal.fields import Natural
 from teal.resource import Converters, Resource, Schema, View
 from teal.teal import Teal
-from teal.tests.client import Client
 
 
 @pytest.fixture()

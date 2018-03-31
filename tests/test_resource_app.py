@@ -13,8 +13,8 @@ from teal.config import Config
 from teal.fields import Natural
 from teal.resource import Resource as ResourceDef
 from teal.teal import Teal
-from teal.tests.client import Client
-from teal.tests.conftest import populated_db
+from teal.client import Client
+from tests.conftest import populated_db
 
 
 def test_init(app: Teal):
@@ -177,7 +177,7 @@ def test_item_path(fconfig: Config, db: SQLAlchemy):
     The following test has set an URL converter of type int, and will
     allow only integers using the flask rules.
     """
-    DeviceDef, *_ = fconfig.RESOURCE_DEFINITIONS  # type: Tuple[ResourceDef]
+    DeviceDef, *_ = fconfig.RESOURCE_DEFINITIONS  # type: Tuple[ResourceDef, ...]
 
     def cannot_find(id):
         assert id == 1

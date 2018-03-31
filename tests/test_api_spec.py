@@ -1,10 +1,9 @@
-from ereuse_utils.test import ANY
+from ereuse_utils.test import ANY, Client
 
 from teal.auth import TokenAuth
 from teal.config import Config
 from teal.resource import Resource, Schema
 from teal.teal import Teal
-from teal.tests.client import Client
 
 
 def test_swagger(client: Client):
