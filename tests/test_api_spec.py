@@ -1,4 +1,5 @@
 from ereuse_utils.test import ANY, Client
+from flask_sqlalchemy import SQLAlchemy
 
 from teal.auth import TokenAuth
 from teal.config import Config
@@ -21,7 +22,7 @@ def test_swagger(client: Client):
     assert '<body class="swagger-section">' in html, 'The HTML must be swagger page'
 
 
-def test_swagger_auth():
+def test_swagger_auth(db: SQLAlchemy):
     """Tests that swagger recognizes an endpoint with Authorization."""
 
     class TestTokenAuth(TokenAuth):
@@ -38,7 +39,7 @@ def test_swagger_auth():
     class TestConfig(Config):
         RESOURCE_DEFINITIONS = [FooDef]
 
-    app = Teal(config=TestConfig(), Auth=TestTokenAuth)
+    app = Teal(config=TestConfig(), Auth=TestTokenAuth, db=db)
     client = app.test_client()
 
     api, _ = client.get('/apispec_1.json')

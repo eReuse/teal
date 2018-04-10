@@ -9,7 +9,7 @@ setup(
     author='Xavier Bustamante Talavera',
     author_email='xavier@bustawin.com',
     description='RESTful Flask for big applications.',
-    install_requires={
+    install_requires=[
         'anytree',
         'apispec',
         'boltons',
@@ -22,12 +22,12 @@ setup(
         'marshmallow-jsonschema',
         'marshmallow>=3.0.0b7',
         'webargs'
-    },
-    tests_requires={
+    ],
+    tests_requires=[
         'pytest',
         'pytest-datadir'
-    },
-    classifiers={
+    ],
+    classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
@@ -37,5 +37,5 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
         'Topic :: Software Development :: Libraries :: Python Modules'
-    },
+    ],
 )

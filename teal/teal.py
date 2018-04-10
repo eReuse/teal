@@ -14,7 +14,6 @@ from werkzeug.wsgi import DispatcherMiddleware
 from teal.auth import Auth
 from teal.client import Client
 from teal.config import Config as ConfigClass
-from teal.db import db as database
 from teal.request import Request
 from teal.resource import Resource
 
@@ -27,7 +26,7 @@ class Teal(Flask):
     test_client_class = Client
     request_class = Request
 
-    def __init__(self, config: ConfigClass, db: SQLAlchemy = database, import_name=__package__,
+    def __init__(self, config: ConfigClass, db: SQLAlchemy, import_name=__package__,
                  static_path=None, static_url_path=None, static_folder='static',
                  template_folder='templates', instance_path=None, instance_relative_config=False,
                  root_path=None, Auth: Type[Auth] = Auth):
@@ -145,9 +144,11 @@ def prefixed_database_factory(Config: Type[ConfigClass],
     :return: A WSGI middleware where an app without database is default
     and the rest prefixed with their database name.
     """
-    default = App(config=Config())
+    # todo
+    db = SQLAlchemy()
+    default = App(config=Config(), db=db)
     apps = {
-        '/{}'.format(db): App(config=Config(db=sql_uri))
-        for db, sql_uri in databases
+        '/{}'.format(path_uri): App(config=Config(db=sql_uri), db=db)
+        for path_uri, sql_uri in databases
     }
     return DispatcherMiddleware(default, apps)

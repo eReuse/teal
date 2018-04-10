@@ -10,7 +10,6 @@ from webargs.flaskparser import parser
 from werkzeug.exceptions import MethodNotAllowed
 
 from teal.auth import Auth
-from teal.db import Model, db
 
 
 class SchemaOpts(MarshmallowSchemaOpts):
@@ -62,8 +61,6 @@ class View(SwaggerView):
     def __init__(self, definition: 'Resource', **kwargs) -> None:
         self.resource_def = definition
         """The ResourceDefinition tied to this view."""
-        self.Model = definition.MODEL
-        """The Model tied to this view."""
         super().__init__()
 
     @classmethod
@@ -156,8 +153,6 @@ class Resource(Blueprint):
     """Resource view linked to this definition."""
     SCHEMA = Schema  # type: Type[Schema]
     """The Schema that validates a submitting resource at the entry point."""
-    MODEL = db.Model  # type: Type[Model]
-    """The database model."""
     AUTH = False
     """
     If true, authentication is required for ALL the endpoints of this 
@@ -184,7 +179,7 @@ class Resource(Blueprint):
         super().__init__(name, import_name, static_folder, static_url_path, template_folder,
                          url_prefix, subdomain, url_defaults, root_path)
         # Views
-        view = self.VIEW.as_view('main', **{'definition': self, 'auth': auth})
+        view = self.VIEW.as_view('main', definition=self, auth=auth)
         if self.AUTH:
             view = auth.requires_auth(view)
         self.add_url_rule('/', defaults={'id': None}, view_func=view, methods={'GET'})

@@ -62,7 +62,7 @@ def test_models(app: Teal, db: SQLAlchemy):
         assert pc == queried_pc
 
 
-def test_inheritance_access(fconfig: Config):
+def test_inheritance_access(fconfig: Config, db: SQLAlchemy):
     """
     Tests that the right endpoint is called when accessing sub-resources.
     """
@@ -77,7 +77,7 @@ def test_inheritance_access(fconfig: Config):
     ComponentDef.VIEW.get = MagicMock(side_effect=foo)
     ComputerDef.VIEW.get = MagicMock(side_effect=foo)
 
-    client = Teal(config=fconfig).test_client()  # type: Client
+    client = Teal(config=fconfig, db=db).test_client()  # type: Client
 
     # Access any non-defined URI
     client.get(uri='/this-does-not-exist', status=NotFound)
@@ -149,7 +149,7 @@ def test_post(fconfig: Config, db: SQLAlchemy):
     ComputerDef.VIEW.one = MagicMock(side_effect=one)
     ComputerDef.VIEW.find = MagicMock(side_effect=find)
 
-    app = Teal(config=fconfig)
+    app = Teal(config=fconfig, db=db)
 
     client = app.test_client()  # type: Client
     with populated_db(db, app):
@@ -184,7 +184,7 @@ def test_item_path(fconfig: Config, db: SQLAlchemy):
         return Response(status=200)
 
     DeviceDef.VIEW.one = MagicMock(side_effect=cannot_find)
-    app = Teal(config=fconfig)
+    app = Teal(config=fconfig, db=db)
     client = app.test_client()  # type: Client
     with populated_db(db, app):
         # All ok, we expect an int and got an int
@@ -198,7 +198,7 @@ def test_item_path(fconfig: Config, db: SQLAlchemy):
         assert DeviceDef.VIEW.one.call_count == 2
 
 
-def test_args(fconfig: Config):
+def test_args(fconfig: Config, db: SQLAlchemy):
     """Tests the handling of query arguments in the URL."""
     DeviceDef, *_ = fconfig.RESOURCE_DEFINITIONS  # type: Tuple[ResourceDef]
 
@@ -213,7 +213,7 @@ def test_args(fconfig: Config):
 
     DeviceDef.VIEW.find = MagicMock(side_effect=find)
 
-    client = Teal(config=fconfig).test_client()  # type: Client
+    client = Teal(config=fconfig, db=db).test_client()  # type: Client
 
     # Ok
     client.get(res=DeviceDef.type, query={'foo': 25})
@@ -224,12 +224,12 @@ def test_args(fconfig: Config):
     # todo r should contain descriptive message of why it fails
 
 
-def test_http_exception(fconfig: Config):
+def test_http_exception(fconfig: Config, db: SQLAlchemy):
     """Tests correct handling of HTTP exceptions."""
     DeviceDef, *_ = fconfig.RESOURCE_DEFINITIONS  # type: Tuple[ResourceDef]
 
     DeviceDef.VIEW.get = MagicMock(side_effect=NotFound)
-    client = Teal(config=fconfig).test_client()  # type: Client
+    client = Teal(config=fconfig, db=db).test_client()  # type: Client
     d, _ = client.get(res=DeviceDef.type, status=NotFound)
     assert d == {
         'code': 404,

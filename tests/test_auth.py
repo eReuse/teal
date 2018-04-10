@@ -2,16 +2,16 @@ from base64 import b64encode
 from unittest.mock import MagicMock
 
 from flask.json import jsonify
+from flask_sqlalchemy import SQLAlchemy
 from werkzeug.exceptions import Unauthorized
 
 from teal.auth import TokenAuth
 from teal.config import Config
-from teal.db import db
 from teal.resource import Resource, Schema, View
 from teal.teal import Teal
 
 
-def test_token_auth_view():
+def test_token_auth_view(db: SQLAlchemy):
     """
     Ensures that an authorization endpoint correctly protects against
     wrong credentials (this case tokens), allowing the endpoint
@@ -39,7 +39,7 @@ def test_token_auth_view():
     class TestConfig(Config):
         RESOURCE_DEFINITIONS = [FooDef]
 
-    app = Teal(config=TestConfig(), Auth=TestTokenAuth)
+    app = Teal(config=TestConfig(), Auth=TestTokenAuth, db=db)
     client = app.test_client()
 
     # No token

@@ -1,6 +1,6 @@
 from typing import Type
 
-from flask_sqlalchemy import Model as _Model, SQLAlchemy
+from flask_sqlalchemy import Model as _Model
 from sqlalchemy.orm import Query as _Query
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.exceptions import NotFound
@@ -17,6 +17,8 @@ class ResourceNotFound(NotFound):
 POLYMORPHIC_ID = 'polymorphic_identity'
 POLYMORPHIC_ON = 'polymorphic_on'
 INHERIT_COND = 'inherit_condition'
+CASCADE = 'save-update, delete'
+CASCADE_OWN = '{}, delete-orphan'.format(CASCADE)
 
 
 class Query(_Query):
@@ -31,6 +33,3 @@ class Model(_Model):
     # Just provide typing
     query_class = Query  # type: Type[Query]
     query = None  # type: Query
-
-
-db = SQLAlchemy(model_class=Model)
