@@ -28,3 +28,8 @@ def test_db_default_column_name(db: SQLAlchemy):
         id = db.Column(db.Integer, primary_key=True)
 
     assert FooBar.__tablename__ == 'foo_bar'
+
+
+def test_db_psql_schemas(db: SQLAlchemy):
+    """Tests multiple psql schemas."""
+    # todo do this

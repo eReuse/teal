@@ -14,6 +14,7 @@ from werkzeug.wsgi import DispatcherMiddleware
 from teal.auth import Auth
 from teal.client import Client
 from teal.config import Config as ConfigClass
+from teal.json import TealJSONEncoder
 from teal.request import Request
 from teal.resource import Resource
 
@@ -25,6 +26,7 @@ class Teal(Flask):
     """
     test_client_class = Client
     request_class = Request
+    json_encoder = TealJSONEncoder
 
     def __init__(self, config: ConfigClass, db: SQLAlchemy, import_name=__package__,
                  static_path=None, static_url_path=None, static_folder='static',
@@ -63,8 +65,11 @@ class Teal(Flask):
         third app adds a new type of user).
         """
         for ResourceDef in self.config['RESOURCE_DEFINITIONS']:
-            resource_def = ResourceDef(self.auth)
+            resource_def = ResourceDef(self)  # type: Resource
             self.register_blueprint(resource_def)
+            for cli_command in resource_def.cli_commands:  # Register CLI commands
+                self.cli.add_command(*cli_command)
+
             # todo should we use resource_def.name instead of type?
             # are we going to have collisions? (2 resource_def -> 1 schema)
             self.resources[resource_def.type] = resource_def

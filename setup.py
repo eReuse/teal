@@ -20,7 +20,7 @@ setup(
         'flask>=0.11',
         'flask-sqlalchemy',
         'marshmallow-jsonschema',
-        'marshmallow>=3.0.0b7',
+        'marshmallow==3.0.0b9',
         'webargs'
     ],
     tests_requires=[

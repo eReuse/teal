@@ -44,17 +44,17 @@ def test_token_auth_view(db: SQLAlchemy):
 
     # No token
     # No auth header sent
-    client.get(res=FooSchema.type, status=Unauthorized)
+    client.get(res=FooSchema.t, status=Unauthorized)
     assert TestTokenAuth.authenticate.call_count == 0
 
     # Wrong format
     # System couldn't parse Auth header
-    client.get(res=FooSchema.type, token='this is wrong', status=Unauthorized)
+    client.get(res=FooSchema.t, token='this is wrong', status=Unauthorized)
     assert TestTokenAuth.authenticate.call_count == 0
 
     # Wrong credentials
     # System can parse credentials but they are incorrect
-    client.get(res=FooSchema.type, token=b64encode(b'nok:').decode(), status=Unauthorized)
+    client.get(res=FooSchema.t, token=b64encode(b'nok:').decode(), status=Unauthorized)
     # Authenticate method was hit
     assert TestTokenAuth.authenticate.call_count == 1
 
@@ -62,7 +62,7 @@ def test_token_auth_view(db: SQLAlchemy):
     # Our authenticate method now returns some dummy user instead of
     # raising Unauthorized
     TestTokenAuth.authenticate = MagicMock(return_value={'id': '1'})
-    data, _ = client.get(res=FooSchema.type, token=b64encode(b'ok:').decode())
+    data, _ = client.get(res=FooSchema.t, token=b64encode(b'ok:').decode())
     TestTokenAuth.authenticate.assert_called_once_with('ok', '')
     # The endpoint was hit
     assert data == {'did': 'it!'}

@@ -50,7 +50,7 @@ class Auth:
         An exception (expected Unauthorized) is raised if
         authentication failed.
         """
-        g.account = self.authenticate(auth.username, auth.password)
+        g.user = self.authenticate(auth.username, auth.password)
 
     def authenticate(self, username: str, password: str) -> object:
         """
@@ -59,7 +59,7 @@ class Auth:
         if authentication failed.
 
         :raise: Unauthorized Authentication failed.
-        :return: A tuple with the user_id and the user object.
+        :return: The user object.
         """
         raise NotImplementedError()
 
@@ -74,6 +74,6 @@ class TokenAuth(Auth):
         a user or a raised exception if authentication failed.
 
         :raise: Unauthorized Authentication failed.
-        :return A tuple with the user_id and the user object.
+        :return The user object.
         """
         raise NotImplementedError()

@@ -119,7 +119,7 @@ def test_post(fconfig: Config, db: SQLAlchemy):
     PC = {
         'id': 1,
         'model': 'foo',
-        'components': [{'id': 2}, {'id': 3}]
+        'components': [{'id': 2, 'type': 'Component'}, {'id': 3, 'type': 'Component'}]
     }
 
     def post():

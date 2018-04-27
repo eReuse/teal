@@ -1,15 +1,18 @@
 from enum import Enum
-from typing import Type
+from typing import Callable, Iterable, Tuple, Type
 
 from boltons.typeutils import classproperty
 from ereuse_utils.naming import Naming
 from flasgger import SwaggerView
 from flask import Blueprint, request
-from marshmallow import Schema as MarshmallowSchema, SchemaOpts as MarshmallowSchemaOpts
+from flask.json import jsonify
+from marshmallow import Schema as MarshmallowSchema, SchemaOpts as MarshmallowSchemaOpts, \
+    ValidationError, validates_schema
 from webargs.flaskparser import parser
 from werkzeug.exceptions import MethodNotAllowed
 
 from teal.auth import Auth
+from teal.db import Model
 
 
 class SchemaOpts(MarshmallowSchemaOpts):
@@ -35,7 +38,7 @@ class Schema(MarshmallowSchema):
 
     # noinspection PyMethodParameters
     @classproperty
-    def type(cls: Type['Schema']) -> str:
+    def t(cls: Type['Schema']) -> str:
         """The type for this schema, auto-computed from its name."""
         name, *_ = cls.__name__.split('Schema')
         return Naming.new_type(name, cls.Meta.PREFIX)
@@ -44,7 +47,35 @@ class Schema(MarshmallowSchema):
     @classproperty
     def resource(cls: Type['Schema']) -> str:
         """The resource name of this schema."""
-        return Naming.resource(cls.type)
+        return Naming.resource(cls.t)
+
+    @validates_schema(pass_original=True)
+    def check_unknown_fields(self, _, original_data: dict):
+        """
+        Raises a validationError when user sends extra fields.
+
+        From `Marshmallow docs<http://marshmallow.readthedocs.io/en/
+        latest/extending.html#validating-original-input-data>`_.
+        """
+        unknown_fields = set(original_data) - set(f.data_key or n for n, f in self.fields.items())
+        if unknown_fields:
+            raise ValidationError('Unknown field', unknown_fields)
+
+    @validates_schema(pass_original=True)
+    def check_dump_only(self, _, orig_data: dict):
+        """
+        Raises a ValidationError if the user is submitting
+        'read-only' fields.
+        """
+        # Note that validates_schema does not execute when dumping
+        dump_only_fields = (name for name, field in self.fields.items() if field.dump_only)
+        non_writable = set(orig_data).intersection(dump_only_fields)
+        if non_writable:
+            raise ValidationError('Non-writable field', non_writable)
+
+    def jsonify(self, model: Model, many: bool = False, update_fields: bool = True, **kw):
+        dictionary = model.dump()
+        return jsonify(self.dump(dictionary, many, update_fields, **kw))
 
 
 class View(SwaggerView):
@@ -58,9 +89,11 @@ class View(SwaggerView):
         method (GET collection) endpoint
         """
 
-    def __init__(self, definition: 'Resource', **kwargs) -> None:
+    def __init__(self, definition: 'Resource', **kw) -> None:
         self.resource_def = definition
         """The ResourceDefinition tied to this view."""
+        self.schema = definition.schema
+        """The schema tied to this view."""
         super().__init__()
 
     @classmethod
@@ -155,8 +188,8 @@ class Resource(Blueprint):
     """The Schema that validates a submitting resource at the entry point."""
     AUTH = False
     """
-    If true, authentication is required for ALL the endpoints of this 
-    resource.
+    If true, authentication is required for all the endpoints of this 
+    resource defined in ``VIEW``.
     """
     ID_NAME = 'id'
     """
@@ -170,26 +203,35 @@ class Resource(Blueprint):
     ``uuid`` will return an ``UUID`` object.
     """
 
-    def __init__(self, auth: Auth, import_name=__package__, static_folder=None,
-                 static_url_path=None, template_folder=None, url_prefix=None, subdomain=None,
-                 url_defaults=None, root_path=None):
+    def __init__(self, app,
+                 import_name=__package__,
+                 static_folder=None,
+                 static_url_path=None,
+                 template_folder=None,
+                 url_prefix=None,
+                 subdomain=None,
+                 url_defaults=None,
+                 root_path=None,
+                 cli_commands: Iterable[Tuple[Callable, str or None]] = tuple()):
         self.schema = self.SCHEMA()
-        name = self.schema.type
+        name = self.schema.t
         url_prefix = url_prefix or '/{}'.format(self.resource)
         super().__init__(name, import_name, static_folder, static_url_path, template_folder,
                          url_prefix, subdomain, url_defaults, root_path)
+        self.app = app
         # Views
-        view = self.VIEW.as_view('main', definition=self, auth=auth)
+        view = self.VIEW.as_view('main', definition=self, auth=app.auth)
         if self.AUTH:
-            view = auth.requires_auth(view)
+            view = app.auth.requires_auth(view)
         self.add_url_rule('/', defaults={'id': None}, view_func=view, methods={'GET'})
         self.add_url_rule('/', view_func=view, methods={'POST'})
         self.add_url_rule('/<{}:{}>'.format(self.ID_CONVERTER.value, self.ID_NAME),
                           view_func=view, methods={'GET', 'PUT', 'DELETE'})
+        self.cli_commands = cli_commands
 
     @classproperty
     def type(cls):
-        return cls.SCHEMA.type
+        return cls.SCHEMA.t
 
     @classproperty
     def resource(cls):

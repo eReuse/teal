@@ -8,6 +8,7 @@ from marshmallow.validate import Range
 from teal.client import Client
 from teal.config import Config
 from teal.db import INHERIT_COND, Model, POLYMORPHIC_ID, POLYMORPHIC_ON
+from teal.marshmallow import NestedOn
 from teal.resource import Converters, Resource, Schema, View
 from teal.teal import Teal
 
@@ -50,6 +51,7 @@ def f_config(config: Config, db: SQLAlchemy) -> Config:
 
     class DeviceSchema(Schema):
         id = Integer(validate=Range(min=1))
+        type = Str()
         model = Str()
 
     class DeviceView(View):
@@ -96,7 +98,7 @@ def f_config(config: Config, db: SQLAlchemy) -> Config:
         MODEL = Component
 
     class ComputerSchema(DeviceSchema):
-        components = Nested(ComponentSchema, many=True)
+        components = NestedOn(ComponentSchema, polymorphic_on='type', many=True)
 
     class Computer(Device):
         id = db.Column(db.Integer, db.ForeignKey(Device.id), primary_key=True)
