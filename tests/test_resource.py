@@ -130,11 +130,15 @@ def test_nested_on(fconfig: Config, db: SQLAlchemy):
     """Tests the NestedOn marshmallow field."""
     DeviceDef, ComponentDef, ComputerDef = fconfig.RESOURCE_DEFINITIONS
 
-    class GraphicCard(ComponentDef.SCHEMA):
+    class GraphicCardSchema(ComponentDef.SCHEMA):
         speed = Integer()
 
+    class GraphicCard(ComponentDef.MODEL):
+        speed = db.Column(db.Integer)
+
     class GraphicCardDef(ComponentDef):
-        SCHEMA = GraphicCard
+        SCHEMA = GraphicCardSchema
+        MODEL = GraphicCard
 
     fconfig.RESOURCE_DEFINITIONS += (GraphicCardDef,)
 
@@ -150,7 +154,9 @@ def test_nested_on(fconfig: Config, db: SQLAlchemy):
     with app.app_context():
         schema = app.resources['Computer'].schema
         result = schema.load(pc_template)
-        assert pc_template == result
+        assert pc_template['id'] == result['id']
+        assert isinstance(result['components'][0], ComponentDef.MODEL)
+        assert isinstance(result['components'][1], GraphicCardDef.MODEL)
         # Let's add the graphic card's speed field to the component
         with pytest.raises(ValidationError, message={'components': {'speed': ['Unknown field']}}):
             pc = deepcopy(pc_template)

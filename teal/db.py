@@ -1,7 +1,8 @@
+from distutils.version import StrictVersion
 from typing import Type
 
 from flask_sqlalchemy import Model as _Model, SQLAlchemy as FlaskSQLAlchemy, SignallingSession
-from sqlalchemy import event, inspect
+from sqlalchemy import event, inspect, types
 from sqlalchemy.orm import Query as _Query, sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.exceptions import NotFound
@@ -119,3 +120,13 @@ class SQLAlchemy(FlaskSQLAlchemy):
     def create_session(self, options):
         """As parent's create_session but adding our SchemaSession."""
         return sessionmaker(class_=SchemaSession, db=self, **options)
+
+
+class StrictVersionType(types.TypeDecorator):
+    impl = types.Unicode
+
+    def process_bind_param(self, value, dialect):
+        return str(value)
+
+    def process_result_value(self, value, dialect):
+        return StrictVersion(value)

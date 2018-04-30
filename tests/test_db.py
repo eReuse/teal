@@ -1,7 +1,10 @@
+from distutils.version import StrictVersion
+
 import pytest
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.exceptions import NotFound
 
+from teal.db import StrictVersionType
 from teal.teal import Teal
 
 
@@ -33,3 +36,12 @@ def test_db_default_column_name(db: SQLAlchemy):
 def test_db_psql_schemas(db: SQLAlchemy):
     """Tests multiple psql schemas."""
     # todo do this
+
+
+def test_db_strict_version_type(db: SQLAlchemy):
+    class Foo(db.Model):
+        id = db.Column(db.Integer, primary_key=True)
+        bar = db.Column(StrictVersionType)
+
+    foo = Foo(id=1, bar=StrictVersion('1.0.0a1'))
+    assert isinstance(foo.bar, StrictVersion)

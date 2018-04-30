@@ -98,7 +98,7 @@ def f_config(config: Config, db: SQLAlchemy) -> Config:
         MODEL = Component
 
     class ComputerSchema(DeviceSchema):
-        components = NestedOn(ComponentSchema, polymorphic_on='type', many=True)
+        components = NestedOn(ComponentSchema, polymorphic_on='type', many=True, db=db)
 
     class Computer(Device):
         id = db.Column(db.Integer, db.ForeignKey(Device.id), primary_key=True)

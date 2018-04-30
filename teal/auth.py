@@ -2,6 +2,7 @@ from functools import wraps
 from typing import Callable
 
 from flask import current_app, g, request
+from werkzeug.datastructures import Authorization
 from werkzeug.exceptions import Unauthorized
 
 
@@ -43,7 +44,7 @@ class Auth:
 
         return decorated
 
-    def perform_auth(self, auth):
+    def perform_auth(self, auth: Authorization):
         """
         Authenticate an user. This loads the user.
 

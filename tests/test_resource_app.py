@@ -124,7 +124,7 @@ def test_post(fconfig: Config, db: SQLAlchemy):
 
     def post():
         pc = request.get_json()
-        pc = Computer(components=[Component(**c) for c in pc.pop('components')], **pc)
+        pc = Computer(**pc)
         db.session.add(pc)
         db.session.commit()
         return Response(status=201)

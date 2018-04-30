@@ -35,10 +35,10 @@ class NestedOn(MarshmallowNested):
     def __init__(self,
                  nested,
                  polymorphic_on: str,
+                 db: SQLAlchemy,
                  default=missing_,
                  exclude=tuple(),
                  only=None,
-                 db: SQLAlchemy = None,
                  **kwargs):
         """
 
