@@ -4,10 +4,10 @@ from typing import Callable, Iterable, Tuple, Type
 from boltons.typeutils import classproperty
 from ereuse_utils.naming import Naming
 from flasgger import SwaggerView
-from flask import Blueprint, request
+from flask import Blueprint, current_app, g, request
 from flask.json import jsonify
 from marshmallow import Schema as MarshmallowSchema, SchemaOpts as MarshmallowSchemaOpts, \
-    ValidationError, validates_schema
+    ValidationError, post_dump, validates_schema
 from webargs.flaskparser import parser
 from werkzeug.exceptions import MethodNotAllowed
 
@@ -73,9 +73,80 @@ class Schema(MarshmallowSchema):
         if non_writable:
             raise ValidationError('Non-writable field', non_writable)
 
-    def jsonify(self, model: Model, many: bool = False, update_fields: bool = True, **kw):
-        dictionary = model.dump()
-        return jsonify(self.dump(dictionary, many, update_fields, **kw))
+    @post_dump
+    def remove_none_values(self, data: dict) -> dict:
+        """
+        Skip from dumping values that are None.
+
+        `From here <https://github.com/marshmallow-code/marshmallow/
+        issues/229#issuecomment-134387999>`_.
+        """
+        return {key: value for key, value in data.items() if value is not None}
+
+    def dump(self, obj, many=None, update_fields=True, nested=None):
+        """
+        Like marshmallow's dump but with nested resource support.
+
+        This can load model relationships up to ``nested`` level. For
+        example, if ``nested`` is ``1`` and we pass in a model of
+        ``User`` that has a relationship with a table of ``Post``, it
+        will load ``User`` and ``User.posts`` with all posts objects
+        populated, but it won't load relationships inside the
+        ``Post`` object. If, at the same time the ``Post`` has
+        an ``author`` relationship with ``author_id`` being the FK,
+        ``user.posts[n].author`` will be the value of ``author_id``.
+
+        Define nested fields with the :class:`teal.marshmallow.NestedOn`
+
+        This method requires an active application context as it needs
+        to store some stuff in ``g``.
+
+        :param nested: How many layers of nested relationships to load?
+                       By default only loads 1 nested relationship.
+        """
+        from teal.marshmallow import NestedOn
+        if nested is not None:
+            setattr(g, NestedOn.NESTED_LEVEL, 0)
+            setattr(g, NestedOn.NESTED_LEVEL_MAX, nested)
+        return super().dump(obj, many, update_fields)
+
+    def jsonify(self,
+                model: Model,
+                nested=1,
+                many=False,
+                update_fields: bool = True,
+                **kw) -> str:
+        """
+        Like flask's jsonify but with model / marshmallow schema
+        support.
+
+        :param nested: How many layers of nested relationships to load?
+                       By default only loads 1 nested relationship.
+        """
+        return jsonify(self.dump(model, many, update_fields, nested=nested))
+
+    def jsonify_polymorphic(self,
+                            model: Model,
+                            polymorphic_on='type',
+                            nested=1,
+                            update_fields: bool = True) -> str:
+        schema = current_app.resources[getattr(model, polymorphic_on)].schema
+        assert isinstance(schema, self.__class__)
+        result = schema.dump(model, nested=nested, update_fields=update_fields)
+        return jsonify(result)
+
+    def jsonify_polymorphic_many(self,
+                                 models: Iterable[Model],
+                                 polymorphic_on='type',
+                                 nested=1,
+                                 update_fields: bool = True) -> str:
+
+        result = []
+        for model in models:
+            schema = current_app.resources[getattr(model, polymorphic_on)].schema
+            assert isinstance(schema, self.__class__)
+            result.append(schema.dump(model, nested=nested, update_fields=update_fields))
+        return jsonify(result)
 
 
 class View(SwaggerView):
@@ -92,7 +163,7 @@ class View(SwaggerView):
     def __init__(self, definition: 'Resource', **kw) -> None:
         self.resource_def = definition
         """The ResourceDefinition tied to this view."""
-        self.schema = definition.schema
+        self.schema = None  # type: Schema
         """The schema tied to this view."""
         super().__init__()
 
@@ -124,6 +195,15 @@ class View(SwaggerView):
             cls.security = auth.SWAGGER
             """The security endpoint for this view."""
         return super().as_view(name, *class_args, **class_kwargs)
+
+    def dispatch_request(self, *args, **kwargs):
+        # This is unique for each view call
+        self.schema = g.schema
+        """
+        The default schema in this resource. 
+        Added as an attr for commodity; you can always use g.schema.
+        """
+        return super().dispatch_request(*args, **kwargs)
 
     def get(self, id):
         """
@@ -213,12 +293,11 @@ class Resource(Blueprint):
                  url_defaults=None,
                  root_path=None,
                  cli_commands: Iterable[Tuple[Callable, str or None]] = tuple()):
-        self.schema = self.SCHEMA()
-        name = self.schema.t
         url_prefix = url_prefix or '/{}'.format(self.resource)
-        super().__init__(name, import_name, static_folder, static_url_path, template_folder,
+        super().__init__(self.type, import_name, static_folder, static_url_path, template_folder,
                          url_prefix, subdomain, url_defaults, root_path)
         self.app = app
+        self.schema = self.SCHEMA()
         # Views
         view = self.VIEW.as_view('main', definition=self, auth=app.auth)
         if self.AUTH:
@@ -228,6 +307,7 @@ class Resource(Blueprint):
         self.add_url_rule('/<{}:{}>'.format(self.ID_CONVERTER.value, self.ID_NAME),
                           view_func=view, methods={'GET', 'PUT', 'DELETE'})
         self.cli_commands = cli_commands
+        self.before_request(self.load_resource)
 
     @classproperty
     def type(cls):
@@ -236,3 +316,11 @@ class Resource(Blueprint):
     @classproperty
     def resource(cls):
         return cls.SCHEMA.resource
+
+    def load_resource(self):
+        """
+        Loads a schema and resource_def into the current request so it
+        can be used easily by functions outside view.
+        """
+        g.schema = self.schema
+        g.resource_def = self

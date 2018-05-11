@@ -2,7 +2,7 @@ from distutils.version import StrictVersion
 from typing import Type
 
 from flask_sqlalchemy import Model as _Model, SQLAlchemy as FlaskSQLAlchemy, SignallingSession
-from sqlalchemy import event, inspect, types
+from sqlalchemy import event, types
 from sqlalchemy.orm import Query as _Query, sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.exceptions import NotFound
@@ -35,19 +35,6 @@ class Model(_Model):
     # Just provide typing
     query_class = Query  # type: Type[Query]
     query = None  # type: Query
-
-    def dump(self) -> dict:
-        """
-        Super simple way of creating a dictionary.
-
-        It doesn't handle recursion nor advanced patterns.
-
-        `See this to know how this method can screw it up easily
-        <https://bitbucket.org/zzzeek/sqlalchemy/issues/3976/
-        built-in-way-to-convert-an-orm-object-ie>`_.
-        """
-        mapper = inspect(self.__class__)
-        return {column.key: getattr(self, column.key) for column in mapper.attrs}
 
 
 class SchemaSession(SignallingSession):
@@ -123,6 +110,11 @@ class SQLAlchemy(FlaskSQLAlchemy):
 
 
 class StrictVersionType(types.TypeDecorator):
+    """Supports storing StrictVersion objects on the Database.
+
+    Idea `from official documentation <http://docs.sqlalchemy.org/en/
+    latest/core/custom_types.html#augmenting-existing-types>`_.
+    """
     impl = types.Unicode
 
     def process_bind_param(self, value, dialect):

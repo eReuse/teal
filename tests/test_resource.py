@@ -60,7 +60,7 @@ def test_resource_def_init(db: SQLAlchemy):
             self.auth = Auth()
 
     foos = FooDef(MockApp())
-    assert foos.schema.t == foos.type == 'Foo'
+    assert foos.SCHEMA().t == foos.type == 'Foo'
     assert foos.url_prefix == '/foos'
     assert foos.name == 'Foo'
 
@@ -95,18 +95,6 @@ def test_schema_non_writable():
     foos.load({'bar': 2})
     # Dump is not affected by this validation
     foos.dump({'foo': 1, 'bar': 2})
-
-
-def test_model_dump(db: SQLAlchemy):
-    """Tests ``db.Model.dump()``."""
-
-    class Foo(db.Model):
-        id = db.Column(db.Integer, primary_key=True)
-        bar = db.Column(db.Integer())
-
-    foo = Foo(id=1)
-    result = foo.dump()
-    assert result == {'id': 1, 'bar': None}
 
 
 def test_schema_jsonify(db: SQLAlchemy, app: Teal):
@@ -152,7 +140,7 @@ def test_nested_on(fconfig: Config, db: SQLAlchemy):
         ]
     }
     with app.app_context():
-        schema = app.resources['Computer'].schema
+        schema = app.resources['Computer'].SCHEMA()
         result = schema.load(pc_template)
         assert pc_template['id'] == result['id']
         assert isinstance(result['components'][0], ComponentDef.MODEL)

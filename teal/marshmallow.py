@@ -2,11 +2,11 @@ from distutils.version import StrictVersion
 from typing import Type
 
 from boltons.typeutils import issubclass
-from flask import current_app
+from flask import current_app, g
 from marshmallow import ValidationError, utils
 from marshmallow.fields import Field, Nested as MarshmallowNested, missing_
 
-from teal.db import SQLAlchemy, Model
+from teal.db import Model, SQLAlchemy
 from teal.resource import Schema
 
 
@@ -32,6 +32,19 @@ class Color(Field):
 
 
 class NestedOn(MarshmallowNested):
+    """
+    A relationship with a resource schema that emulates the
+    relationships in SQLAlchemy.
+
+    When deserializing values this instantiates a SQLAlchemy Model
+    that fits the value in ``polymorphic_on``, usually named ``type``.
+
+    When serializing from :meth:`teal.resource.Schema.jsonify` it
+    serializes nested relationships up to a defined limit.
+    """
+    NESTED_LEVEL = '_level'
+    NESTED_LEVEL_MAX = '_level_max'
+
     def __init__(self,
                  nested,
                  polymorphic_on: str,
@@ -48,9 +61,8 @@ class NestedOn(MarshmallowNested):
                                of a subschema of ``nested``.
         """
         self.polymorphic_on = polymorphic_on
-        if only:
-            assert isinstance(only, list)
         assert isinstance(polymorphic_on, str)
+        assert isinstance(only, str) or only is None
         super().__init__(nested, default, exclude, only, **kwargs)
         self.db = db
 
@@ -86,8 +98,21 @@ class NestedOn(MarshmallowNested):
                                  dump_only=self._nested_normalized_option('dump_only'))
         schema.ordered = getattr(self.parent, 'ordered', False)
         value = schema.load(value)
-        model = self.db.Model._decl_class_registry.data[value.pop('type')]() # type: Model
+        model = self.db.Model._decl_class_registry.data[type]()  # type: Model
         assert issubclass(model, Model)
         return model(**value)
 
-
+    def serialize(self, attr, obj, accessor=None) -> dict:
+        """See class docs."""
+        if g.get(NestedOn.NESTED_LEVEL) == g.get(NestedOn.NESTED_LEVEL_MAX):
+            # Idea from https://marshmallow-sqlalchemy.readthedocs.io
+            # /en/latest/recipes.html#smart-nested-field
+            # Gets the FK of the relationship instead of the full object
+            # This won't work for many-many relationships (as they are lists)
+            # In such case return None
+            # todo is this the behaviour we want?
+            return getattr(obj, attr + '_id', None)
+        setattr(g, NestedOn.NESTED_LEVEL, g.get(NestedOn.NESTED_LEVEL) + 1)
+        ret = super().serialize(attr, obj, accessor)
+        setattr(g, NestedOn.NESTED_LEVEL, g.get(NestedOn.NESTED_LEVEL) - 1)
+        return ret
