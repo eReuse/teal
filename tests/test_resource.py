@@ -1,4 +1,3 @@
-import json
 from copy import deepcopy
 
 import pytest
@@ -95,23 +94,6 @@ def test_schema_non_writable():
     foos.load({'bar': 2})
     # Dump is not affected by this validation
     foos.dump({'foo': 1, 'bar': 2})
-
-
-def test_schema_jsonify(db: SQLAlchemy, app: Teal):
-    """Tests ``Schema.jsonify()``."""
-    with app.test_request_context():
-        class FooSchema(Schema):
-            id = Integer()
-
-        foos = FooSchema()
-
-        class Foo(db.Model):
-            id = db.Column(db.Integer, primary_key=True)
-
-        foo = Foo(id=1)
-
-        result = foos.jsonify(foo)
-        assert json.loads(result.data.decode()) == {'id': 1}
 
 
 def test_nested_on(fconfig: Config, db: SQLAlchemy):

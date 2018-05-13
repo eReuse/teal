@@ -102,7 +102,7 @@ class NestedOn(MarshmallowNested):
         assert issubclass(model, Model)
         return model(**value)
 
-    def serialize(self, attr, obj, accessor=None) -> dict:
+    def serialize(self, attr: str, obj, accessor=None) -> dict:
         """See class docs."""
         if g.get(NestedOn.NESTED_LEVEL) == g.get(NestedOn.NESTED_LEVEL_MAX):
             # Idea from https://marshmallow-sqlalchemy.readthedocs.io

@@ -1,6 +1,7 @@
 from distutils.version import StrictVersion
 from typing import Type
 
+from boltons.typeutils import classproperty
 from flask_sqlalchemy import Model as _Model, SQLAlchemy as FlaskSQLAlchemy, SignallingSession
 from sqlalchemy import event, types
 from sqlalchemy.orm import Query as _Query, sessionmaker
@@ -35,6 +36,10 @@ class Model(_Model):
     # Just provide typing
     query_class = Query  # type: Type[Query]
     query = None  # type: Query
+
+    @classproperty
+    def t(cls):
+        return cls.__name__
 
 
 class SchemaSession(SignallingSession):

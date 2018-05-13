@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Callable, Iterable, Tuple, Type
+from typing import Callable, Iterable, Tuple, Type, Union
 
 from boltons.typeutils import classproperty
 from ereuse_utils.naming import Naming
@@ -83,9 +83,15 @@ class Schema(MarshmallowSchema):
         """
         return {key: value for key, value in data.items() if value is not None}
 
-    def dump(self, obj, many=None, update_fields=True, nested=None):
+    def dump(self,
+             model: Union[Model, Iterable[Model]],
+             many=None,
+             update_fields=True,
+             nested=None,
+             polymorphic_on='t'):
         """
-        Like marshmallow's dump but with nested resource support.
+        Like marshmallow's dump but with nested resource support and
+        it only works for Models.
 
         This can load model relationships up to ``nested`` level. For
         example, if ``nested`` is ``1`` and we pass in a model of
@@ -108,13 +114,33 @@ class Schema(MarshmallowSchema):
         if nested is not None:
             setattr(g, NestedOn.NESTED_LEVEL, 0)
             setattr(g, NestedOn.NESTED_LEVEL_MAX, nested)
-        return super().dump(obj, many, update_fields)
+        if many:
+            # todo this breaks with normal dicts. Maybe this should go
+            # in NestedOn in the same way it happens when loading
+            if isinstance(model, dict):
+                return super().dump(model, update_fields=update_fields)
+            else:
+                return [self._polymorphic_dump(o, update_fields, polymorphic_on) for o in model]
+
+        else:
+            if isinstance(model, dict):
+                return super().dump(model, update_fields=update_fields)
+            else:
+                return self._polymorphic_dump(model, update_fields, polymorphic_on)
+
+    def _polymorphic_dump(self, obj: Model, update_fields, polymorphic_on='t'):
+        schema = current_app.resources[getattr(obj, polymorphic_on)].schema
+        if schema.t != self.t:
+            return super(schema.__class__, schema).dump(obj, False, update_fields)
+        else:
+            return super().dump(obj, False, update_fields)
 
     def jsonify(self,
                 model: Model,
                 nested=1,
                 many=False,
                 update_fields: bool = True,
+                polymorphic_on='t',
                 **kw) -> str:
         """
         Like flask's jsonify but with model / marshmallow schema
@@ -123,30 +149,7 @@ class Schema(MarshmallowSchema):
         :param nested: How many layers of nested relationships to load?
                        By default only loads 1 nested relationship.
         """
-        return jsonify(self.dump(model, many, update_fields, nested=nested))
-
-    def jsonify_polymorphic(self,
-                            model: Model,
-                            polymorphic_on='type',
-                            nested=1,
-                            update_fields: bool = True) -> str:
-        schema = current_app.resources[getattr(model, polymorphic_on)].schema
-        assert isinstance(schema, self.__class__)
-        result = schema.dump(model, nested=nested, update_fields=update_fields)
-        return jsonify(result)
-
-    def jsonify_polymorphic_many(self,
-                                 models: Iterable[Model],
-                                 polymorphic_on='type',
-                                 nested=1,
-                                 update_fields: bool = True) -> str:
-
-        result = []
-        for model in models:
-            schema = current_app.resources[getattr(model, polymorphic_on)].schema
-            assert isinstance(schema, self.__class__)
-            result.append(schema.dump(model, nested=nested, update_fields=update_fields))
-        return jsonify(result)
+        return jsonify(self.dump(model, many, update_fields, nested, polymorphic_on))
 
 
 class View(SwaggerView):
