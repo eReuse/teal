@@ -1,26 +1,52 @@
+from typing import Type, Union
+
 from boltons.urlutils import URL
 from ereuse_utils.test import Client as EreuseUtilsClient, JSON
 from flask import Response
 from werkzeug.exceptions import HTTPException
 
+from teal.marshmallow import ValidationError
+
 
 class Client(EreuseUtilsClient):
     """A REST interface to a Teal app."""
 
-    def open(self, uri: str, res: str = None, status: int or HTTPException = 200, query: dict = {},
-             accept=JSON, content_type=JSON, item=None, headers: dict = None, token: str = None,
-             **kw) -> (dict or str, Response):
+    def open(self,
+             uri: str,
+             res: str = None,
+             status: Union[int, Type[HTTPException], Type[ValidationError]] = 200,
+             query: dict = {},
+             accept=JSON,
+             content_type=JSON,
+             item=None,
+             headers: dict = None,
+             token: str = None, **kw) -> (dict or str, Response):
         headers = headers or {}
         if res:
             resource_url = self.application.resources[res].url_prefix + '/'
             uri = URL(uri).navigate(resource_url).to_text()
         if token:
             headers['Authorization'] = 'Basic {}'.format(token)
-        return super().open(uri, status, query, accept, content_type, item, headers, **kw)
+        res = super().open(uri, status, query, accept, content_type, item, headers, **kw)
+        # ereuse-utils checks for status code
+        # here we check for specific type
+        # (when response: {'type': 'foobar', 'code': 422})
+        _status = getattr(status, 'code', status)
+        if not isinstance(status, int) and res[1].status_code == _status:
+            assert status.__name__ == res[0]['type'], \
+                'Expected exception {0} but it was {1}'.format(status.__name__, res[0]['type'])
+        return res
 
-    def get(self, uri: str = '', res: str = None, query: dict = {},
-            status: int or HTTPException = 200, item=None, accept: str = JSON,
-            headers: dict = None, token: str = None, **kw) -> (dict or str, Response):
+    def get(self,
+            uri: str = '',
+            res: str = None,
+            query: dict = {},
+            status: Union[int, Type[HTTPException], Type[ValidationError]] = 200,
+            item=None,
+            accept: str = JSON,
+            headers: dict = None,
+            token: str = None,
+            **kw) -> (dict or str, Response):
         """
         Performs GET.
 
@@ -46,26 +72,47 @@ class Client(EreuseUtilsClient):
         kw['token'] = token
         return super().get(uri, query, item, status, accept, headers, **kw)
 
-    def post(self, data: str or dict, uri: str = '', res: str = None, query: dict = {},
-             status: int or HTTPException = 201, content_type: str = JSON, accept: str = JSON,
-             headers: dict = None, token: str = None,
+    def post(self,
+             data: str or dict,
+             uri: str = '',
+             res: str = None,
+             query: dict = {},
+             status: Union[int, Type[HTTPException], Type[ValidationError]] = 201,
+             content_type: str = JSON,
+             accept: str = JSON,
+             headers: dict = None,
+             token: str = None,
              **kw) -> (dict or str, Response):
         kw['res'] = res
         kw['token'] = token
         return super().post(uri, data, query, status, content_type, accept, headers, **kw)
 
-    def patch(self, data: str or dict, uri: str = '', res: str = None, query: dict = {},
-              item=None, status: int or HTTPException = 200, content_type: str = JSON,
-              accept: str = JSON, token: str = None,
-              headers: dict = None, **kw) -> (dict or str, Response):
+    def patch(self,
+              data: str or dict,
+              uri: str = '',
+              res: str = None,
+              query: dict = {},
+              item=None,
+              status: Union[int, Type[HTTPException], Type[ValidationError]] = 200,
+              content_type: str = JSON,
+              accept: str = JSON,
+              token: str = None,
+              headers: dict = None,
+              **kw) -> (dict or str, Response):
         kw['res'] = res
         kw['token'] = token
         return super().patch(uri, data, query, status, content_type, item, accept, headers, **kw)
 
-    def post_get(self, res: str, data: str or dict, query: dict = {},
-                 status: int or HTTPException = 201, content_type: str = JSON, accept: str = JSON,
-                 headers: dict = None, key='id', token: str = None, **kw) \
-            -> (dict or str, Response):
+    def post_get(self,
+                 res: str,
+                 data: str or dict,
+                 query: dict = {},
+                 status: Union[int, Type[HTTPException], Type[ValidationError]] = 200,
+                 content_type: str = JSON,
+                 accept: str = JSON,
+                 headers: dict = None,
+                 key='id',
+                 token: str = None, **kw) -> (dict or str, Response):
         """Performs post and then gets the resource through its key."""
         r, _ = self.post('', data, res, query, status, content_type, accept, token, headers, **kw)
         return self.get(res=res, item=r[key])

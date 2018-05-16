@@ -67,8 +67,8 @@ class Teal(Flask):
         for ResourceDef in self.config['RESOURCE_DEFINITIONS']:
             resource_def = ResourceDef(self)  # type: Resource
             self.register_blueprint(resource_def)
-            for cli_command in resource_def.cli_commands:  # Register CLI commands
-                self.cli.add_command(*cli_command)
+            for cli_command, *args in resource_def.cli_commands:  # Register CLI commands
+                self.cli.command(*args)(cli_command)
 
             # todo should we use resource_def.name instead of type?
             # are we going to have collisions? (2 resource_def -> 1 schema)

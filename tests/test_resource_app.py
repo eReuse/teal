@@ -11,6 +11,7 @@ from marshmallow.fields import Integer
 from werkzeug.exceptions import MethodNotAllowed, NotFound, UnprocessableEntity
 
 from teal.config import Config
+from teal.marshmallow import ValidationError
 from teal.resource import Resource as ResourceDef
 from teal.teal import Teal
 from teal.client import Client
@@ -155,7 +156,7 @@ def test_post(fconfig: Config, db: SQLAlchemy):
     with populated_db(db, app):
         client.post(res=ComputerDef.type, data=PC)
         # Wrong data
-        data, _ = client.post(res=ComputerDef.type, data={'id': 'foo'}, status=UnprocessableEntity)
+        data, _ = client.post(res=ComputerDef.type, data={'id': 'foo'}, status=ValidationError)
         assert data == {
             'code': 422,
             'type': 'ValidationError',

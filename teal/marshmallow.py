@@ -3,8 +3,9 @@ from typing import Type
 
 from boltons.typeutils import issubclass
 from flask import current_app, g
-from marshmallow import ValidationError, utils
-from marshmallow.fields import Field, Nested as MarshmallowNested, missing_
+from marshmallow import utils
+from marshmallow.fields import Field, Nested as MarshmallowNested, \
+    ValidationError as _ValidationError, missing_
 
 from teal.db import Model, SQLAlchemy
 from teal.resource import Schema
@@ -29,6 +30,14 @@ class Color(Field):
     def _deserialize(self, value, attr, data):
         from colour import Color
         return Color(value) if value is not None else None
+
+
+class URL(Field):
+    def _serialize(self, value, attr, obj):
+        return value.to_text() if value is not None else None
+
+    def _deserialize(self, value, attr, data):
+        return URL(value) if value is not None else None
 
 
 class NestedOn(MarshmallowNested):
@@ -116,3 +125,7 @@ class NestedOn(MarshmallowNested):
         ret = super().serialize(attr, obj, accessor)
         setattr(g, NestedOn.NESTED_LEVEL, g.get(NestedOn.NESTED_LEVEL) - 1)
         return ret
+
+
+class ValidationError(_ValidationError):
+    code = 422

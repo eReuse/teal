@@ -296,7 +296,7 @@ class Resource(Blueprint):
                  url_defaults=None,
                  root_path=None,
                  cli_commands: Iterable[Tuple[Callable, str or None]] = tuple()):
-        url_prefix = url_prefix or '/{}'.format(self.resource)
+        url_prefix = url_prefix if url_prefix is not None else '/{}'.format(self.resource)
         super().__init__(self.type, import_name, static_folder, static_url_path, template_folder,
                          url_prefix, subdomain, url_defaults, root_path)
         self.app = app

@@ -2,6 +2,7 @@ from distutils.version import StrictVersion
 from typing import Type
 
 from boltons.typeutils import classproperty
+from boltons.urlutils import URL as BoltonsUrl
 from flask_sqlalchemy import Model as _Model, SQLAlchemy as FlaskSQLAlchemy, SignallingSession
 from sqlalchemy import event, types
 from sqlalchemy.orm import Query as _Query, sessionmaker
@@ -127,3 +128,13 @@ class StrictVersionType(types.TypeDecorator):
 
     def process_result_value(self, value, dialect):
         return StrictVersion(value)
+
+
+class URL(types.TypeDecorator):
+    impl = types.Unicode
+
+    def process_bind_param(self, value, dialect):
+        str(value)
+
+    def process_result_value(self, value, dialect):
+        BoltonsUrl(value)
