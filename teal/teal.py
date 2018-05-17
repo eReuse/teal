@@ -28,13 +28,24 @@ class Teal(Flask):
     request_class = Request
     json_encoder = TealJSONEncoder
 
-    def __init__(self, config: ConfigClass, db: SQLAlchemy, import_name=__package__,
-                 static_path=None, static_url_path=None, static_folder='static',
-                 template_folder='templates', instance_path=None, instance_relative_config=False,
-                 root_path=None, Auth: Type[Auth] = Auth):
+    def __init__(self,
+                 config: ConfigClass,
+                 db: SQLAlchemy,
+                 import_name=__package__,
+                 static_url_path=None,
+                 static_folder='static',
+                 static_host=None,
+                 host_matching=False,
+                 subdomain_matching=False,
+                 template_folder='templates',
+                 instance_path=None,
+                 instance_relative_config=False,
+                 root_path=None,
+                 Auth: Type[Auth] = Auth):
         ensure_utf8(self.__class__.__name__)
-        super().__init__(import_name, static_path, static_url_path, static_folder, template_folder,
-                         instance_path, instance_relative_config, root_path)
+        super().__init__(import_name, static_url_path, static_folder, static_host, host_matching,
+                         subdomain_matching, template_folder, instance_path,
+                         instance_relative_config, root_path)
         self.config.from_object(config)
         # Load databases
         self.auth = Auth()
@@ -105,12 +116,6 @@ class Teal(Flask):
         response = jsonify(data)
         response.status_code = UnprocessableEntity.code
         return response
-
-    @staticmethod
-    def _get_exc_class_and_code(exc_class_or_code):
-        # We enforce Flask to allow us to handle HTTPExceptions
-        exc_class, _ = super(Teal, Teal)._get_exc_class_and_code(exc_class_or_code)
-        return exc_class, None
 
     def view_schemas(self):
         """Return all schemas in custom JSON Schema format."""

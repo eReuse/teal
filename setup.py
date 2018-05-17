@@ -17,7 +17,7 @@ setup(
         'ereuse-utils[naming]',
         'ereuse-utils[test]',
         'flasgger',
-        'flask>=0.11',
+        'flask>=1.0',
         'flask-sqlalchemy',
         'marshmallow-jsonschema',
         'marshmallow==3.0.0b9',
