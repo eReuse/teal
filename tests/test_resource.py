@@ -4,11 +4,12 @@ import pytest
 from flask_sqlalchemy import SQLAlchemy
 from marshmallow import ValidationError
 from marshmallow.fields import Integer
+from sqlalchemy import Column
 
 from teal.auth import Auth
 from teal.config import Config
 from teal.db import POLYMORPHIC_ID, POLYMORPHIC_ON
-from teal.resource import Resource, Schema, View
+from teal.resource import Resource, Schema, View, url_for_resource
 from teal.teal import Teal
 
 
@@ -76,6 +77,71 @@ def test_schema_extra_fields():
     with pytest.raises(ValidationError):
         # var doesn't exist in the schema
         foos.load({'foo': 2, 'bar': 'no!'})
+
+
+def test_url_for_resource(app: Teal):
+    with app.test_request_context():
+        # Note we need a test_request_context or flask won't know
+        # which base_url to use.
+        assert url_for_resource('Computer') == '/computers/'
+        assert url_for_resource('Computer', 24) == '/computers/24'
+
+
+def test_resource_without_path(config: Config, db: SQLAlchemy):
+    """Test resources that don't have url_prefix."""
+
+    class FooDef(Resource):
+        __type__ = 'Foo'
+
+        def __init__(self, app,
+                     import_name=__package__,
+                     static_folder=None,
+                     static_url_path=None,
+                     template_folder=None,
+                     url_prefix='',  # We set url_prefix to empty string
+                     subdomain=None,
+                     url_defaults=None,
+                     root_path=None):
+            super().__init__(app, import_name, static_folder, static_url_path, template_folder,
+                             url_prefix, subdomain, url_defaults, root_path)
+
+    config.RESOURCE_DEFINITIONS = FooDef,
+
+    app = Teal(config=config, db=db)
+    with app.test_request_context():
+        assert url_for_resource(FooDef) == '/'
+        assert url_for_resource(FooDef, 1) == '/1'
+
+
+def test_init_db(db: SQLAlchemy, config: Config):
+    """Tests :meth:`teal.resource.Resource.init_db`."""
+
+    class Foo(db.Model):
+        id = Column(db.Integer, primary_key=True)
+
+    class FooDef(Resource):
+        def init_db(self, db: SQLAlchemy):
+            db.session.add(Foo())
+
+    config.RESOURCE_DEFINITIONS = FooDef,
+    app = Teal(config=config, db=db)
+    with app.app_context():
+        app.init_db()
+    with app.app_context():
+        # If no commit happened in init_db() or anything else
+        # this would not exist
+        assert Foo.query.filter_by(id=1).one()
+
+    # Test again but executing init-db through the command-line
+    runner = app.test_cli_runner()
+    runner.invoke(args=['init-db'], catch_exceptions=False)
+    with app.app_context():
+        assert Foo.query.filter_by(id=2).one()
+
+    # Test with --erase option
+    runner.invoke(args=['init-db', '--erase'], catch_exceptions=False)
+    with app.app_context():
+        assert Foo.query.count() == 1
 
 
 def test_schema_non_writable():

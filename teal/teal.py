@@ -2,9 +2,11 @@ import inspect
 from typing import Dict, Iterable, Tuple, Type
 
 from anytree import Node
+from click import option
 from ereuse_utils import ensure_utf8
 from flasgger import Swagger
 from flask import Flask, Response, jsonify
+from flask.globals import _app_ctx_stack
 from flask_sqlalchemy import SQLAlchemy
 from marshmallow import ValidationError
 from marshmallow_jsonschema import JSONSchema
@@ -55,7 +57,9 @@ class Teal(Flask):
         self.swag = Swagger(self)
         self.add_url_rule('/schemas', view_func=self.view_schemas, methods={'GET'})
         self.json_schema = JSONSchema()
+        self.db = db
         db.init_app(self)
+        self.cli.command('init-db')(self.init_db)
 
     # noinspection PyAttributeOutsideInit
     def load_resources(self):
@@ -125,6 +129,28 @@ class Teal(Flask):
             for r in self.resources.values()
         }
         return jsonify(schemas)
+
+    @option('--erase/--no-erase', default=False, help='Delete all db contents before?')
+    def init_db(self, erase: bool = False):
+        """
+        Initializes a database from scratch,
+        creating tables and needed resources.
+
+        Note that this does not create the database per se.
+
+        If executing this directly, remember to use an app_context.
+
+        Resources can hook functions that will be called when this
+        method executes, by subclassing :meth:`teal.resource.
+        Resource.load_resource`.
+        """
+        assert _app_ctx_stack.top, 'Use an app context.'
+        if erase:
+            self.db.drop_all()
+        self.db.create_all()
+        for resource in self.resources.values():
+            resource.init_db(self.db)
+        self.db.session.commit()
 
 
 def prefixed_database_factory(Config: Type[ConfigClass],

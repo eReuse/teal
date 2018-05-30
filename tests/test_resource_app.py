@@ -10,11 +10,11 @@ from flask_sqlalchemy import SQLAlchemy
 from marshmallow.fields import Integer
 from werkzeug.exceptions import MethodNotAllowed, NotFound, UnprocessableEntity
 
+from teal.client import Client
 from teal.config import Config
 from teal.marshmallow import ValidationError
 from teal.resource import Resource as ResourceDef
 from teal.teal import Teal
-from teal.client import Client
 from tests.conftest import populated_db
 
 
@@ -217,11 +217,11 @@ def test_args(fconfig: Config, db: SQLAlchemy):
     client = Teal(config=fconfig, db=db).test_client()  # type: Client
 
     # Ok
-    client.get(res=DeviceDef.type, query={'foo': 25})
+    client.get(res=DeviceDef.type, query=[('foo', 25)])
     # Extra not needed data
-    client.get(res=DeviceDef.type, query={'foo': 25, 'bar': 'nope'})
+    client.get(res=DeviceDef.type, query=[('foo', 25), ('bar', 'nope')])
     # Wrong data
-    r, _ = client.get(res=DeviceDef.type, query={'foo': 'nope'}, status=UnprocessableEntity)
+    r, _ = client.get(res=DeviceDef.type, query=[('foo', 'nope')], status=UnprocessableEntity)
     # todo r should contain descriptive message of why it fails
 
 

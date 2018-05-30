@@ -4,18 +4,22 @@ from typing import Type
 from boltons.typeutils import classproperty
 from boltons.urlutils import URL as BoltonsUrl
 from flask_sqlalchemy import Model as _Model, SQLAlchemy as FlaskSQLAlchemy, SignallingSession
-from sqlalchemy import event, types
+from sqlalchemy import CheckConstraint, event, types
 from sqlalchemy.orm import Query as _Query, sessionmaker
-from sqlalchemy.orm.exc import NoResultFound
-from werkzeug.exceptions import NotFound
+from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+from werkzeug.exceptions import NotFound, UnprocessableEntity
 
 
 class ResourceNotFound(NotFound):
-    """The resource does not exist."""
-
     # todo show id
     def __init__(self, resource: str) -> None:
         super().__init__('The {} doesn\'t exist.'.format(resource))
+
+
+class MultipleResourcesFound(UnprocessableEntity):
+    # todo show id
+    def __init__(self, resource: str) -> None:
+        super().__init__('Expected only one {} but multiple where found'.format(resource))
 
 
 POLYMORPHIC_ID = 'polymorphic_identity'
@@ -23,6 +27,7 @@ POLYMORPHIC_ON = 'polymorphic_on'
 INHERIT_COND = 'inherit_condition'
 CASCADE = 'save-update, delete'
 CASCADE_OWN = '{}, delete-orphan'.format(CASCADE)
+DB_CASCADE_SET_NULL = 'SET NULL'
 
 
 class Query(_Query):
@@ -31,6 +36,8 @@ class Query(_Query):
             return super().one()
         except NoResultFound:
             raise ResourceNotFound(self._entities)
+        except MultipleResultsFound:
+            raise MultipleResourcesFound(self._entities)
 
 
 class Model(_Model):
@@ -138,3 +145,9 @@ class URL(types.TypeDecorator):
 
     def process_result_value(self, value, dialect):
         BoltonsUrl(value)
+
+
+def check_range(column: str, min=1, max=None) -> CheckConstraint:
+    """Database constraint for ranged values."""
+    constraint = '>= {}'.format(min) if max is None else 'BETWEEN {} AND {}'.format(min, max)
+    return CheckConstraint('{} {}'.format(column, constraint))

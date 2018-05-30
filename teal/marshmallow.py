@@ -58,6 +58,7 @@ class NestedOn(MarshmallowNested):
                  nested,
                  polymorphic_on: str,
                  db: SQLAlchemy,
+                 collection_class=list,
                  default=missing_,
                  exclude=tuple(),
                  only=None,
@@ -70,6 +71,7 @@ class NestedOn(MarshmallowNested):
                                of a subschema of ``nested``.
         """
         self.polymorphic_on = polymorphic_on
+        self.collection_class = collection_class
         assert isinstance(polymorphic_on, str)
         assert isinstance(only, str) or only is None
         super().__init__(nested, default, exclude, only, **kwargs)
@@ -81,13 +83,14 @@ class NestedOn(MarshmallowNested):
 
         if isinstance(self.only, str):  # self.only is a field name
             if self.many:
-                value = [{self.only: v} for v in value]
+                value = self.collection_class({self.only: v} for v in value)
             else:
                 value = {self.only: value}
         # New code:
         parent_schema = current_app.resources[super().schema.t].SCHEMA
         if self.many:
-            return [self._deserialize_one(single, parent_schema, attr) for single in value]
+            return self.collection_class(self._deserialize_one(single, parent_schema, attr)
+                                         for single in value)
         else:
             return self._deserialize_one(value, parent_schema, attr)
 

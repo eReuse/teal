@@ -4,15 +4,15 @@ from typing import Callable, Iterable, Tuple, Type, Union
 from boltons.typeutils import classproperty
 from ereuse_utils.naming import Naming
 from flasgger import SwaggerView
-from flask import Blueprint, current_app, g, request
+from flask import Blueprint, current_app, g, request, url_for
 from flask.json import jsonify
 from marshmallow import Schema as MarshmallowSchema, SchemaOpts as MarshmallowSchemaOpts, \
-    ValidationError, post_dump, validates_schema
+    ValidationError, post_dump, pre_load, validates_schema
 from webargs.flaskparser import parser
 from werkzeug.exceptions import MethodNotAllowed
 
 from teal.auth import Auth
-from teal.db import Model
+from teal.db import Model, SQLAlchemy
 
 
 class SchemaOpts(MarshmallowSchemaOpts):
@@ -73,14 +73,20 @@ class Schema(MarshmallowSchema):
         if non_writable:
             raise ValidationError('Non-writable field', non_writable)
 
+    @pre_load
     @post_dump
     def remove_none_values(self, data: dict) -> dict:
         """
-        Skip from dumping values that are None.
+        Skip from dumping and loading values that are None.
+
+        A value that is None will be the same as a value that has not
+        been set.
 
         `From here <https://github.com/marshmallow-code/marshmallow/
         issues/229#issuecomment-134387999>`_.
         """
+        # Will I always want this?
+        # maybe this could be a setting in the future?
         return {key: value for key, value in data.items() if value is not None}
 
     def dump(self,
@@ -285,6 +291,11 @@ class Resource(Blueprint):
     Note that converters do **cast** the value, so the converter 
     ``uuid`` will return an ``UUID`` object.
     """
+    __type__ = None  # type: str
+    """
+    The type of resource. 
+    If none, it is used the type of the Schema (``Schema.type``)
+    """
 
     def __init__(self, app,
                  import_name=__package__,
@@ -314,11 +325,15 @@ class Resource(Blueprint):
 
     @classproperty
     def type(cls):
-        return cls.SCHEMA.t
+        return cls.__type__ or cls.SCHEMA.t
+
+    @classproperty
+    def t(cls):
+        return cls.type
 
     @classproperty
     def resource(cls):
-        return cls.SCHEMA.resource
+        return Naming.resource(cls.type)
 
     def load_resource(self):
         """
@@ -327,3 +342,32 @@ class Resource(Blueprint):
         """
         g.schema = self.schema
         g.resource_def = self
+
+    def init_db(self, db: SQLAlchemy):
+        """
+        Put here code to execute when initializing the database for this
+        resource.
+
+        We guarantee this to be executed in an app_context.
+
+        No need to commit.
+        """
+        pass
+
+
+def url_for_resource(
+        resource: Union[Resource, Schema, Model, str, Type[Resource], Type[Schema], Type[Model]],
+        item_id=None) -> str:
+    """
+    As Flask's ``url_for``, this generates an URL but specifically for
+    a View endpoint of the given resource.
+    :param resource:
+    :param item_id: If given, append the ID of the resource in the URL,
+                    ex. GET /devices/1
+    :return: An URL.
+    """
+    type = getattr(resource, 't', resource)
+    values = {}
+    if item_id:
+        values[current_app.resources[type].ID_NAME] = item_id
+    return url_for('{}.main'.format(type), **values)

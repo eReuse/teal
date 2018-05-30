@@ -1,8 +1,9 @@
 from contextlib import contextmanager
 
 import pytest
+from flask.testing import FlaskCliRunner
 from flask_sqlalchemy import SQLAlchemy
-from marshmallow.fields import Nested, Str, Integer
+from marshmallow.fields import Integer, Str
 from marshmallow.validate import Range
 
 from teal.client import Client
@@ -124,9 +125,9 @@ def f_config(config: Config, db: SQLAlchemy) -> Config:
 @pytest.fixture()
 def app(fconfig: Config, db: SQLAlchemy) -> Teal:
     app = Teal(config=fconfig, db=db)
-    db.create_all(app=app)
+    with app.app_context():
+        app.init_db()
     yield app
-    db.drop_all(app=app)
 
 
 @pytest.fixture()
@@ -137,7 +138,9 @@ def client(app: Teal) -> Client:
 @contextmanager
 def populated_db(db: SQLAlchemy, app: Teal):
     db.create_all(app=app)
-    try:
-        yield
-    finally:
-        db.drop_all(app=app)
+    yield
+
+
+@pytest.fixture()
+def runner(app: Teal) -> FlaskCliRunner:
+    return app.test_cli_runner()

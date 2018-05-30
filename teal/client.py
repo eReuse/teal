@@ -1,4 +1,4 @@
-from typing import Type, Union
+from typing import Any, Iterable, Tuple, Type, Union
 
 from boltons.urlutils import URL
 from ereuse_utils.test import Client as EreuseUtilsClient, JSON
@@ -15,7 +15,7 @@ class Client(EreuseUtilsClient):
              uri: str,
              res: str = None,
              status: Union[int, Type[HTTPException], Type[ValidationError]] = 200,
-             query: dict = {},
+             query: Iterable[Tuple[str, Any]] = tuple(),
              accept=JSON,
              content_type=JSON,
              item=None,
@@ -40,7 +40,7 @@ class Client(EreuseUtilsClient):
     def get(self,
             uri: str = '',
             res: str = None,
-            query: dict = {},
+            query: Iterable[Tuple[str, Any]] = tuple(),
             status: Union[int, Type[HTTPException], Type[ValidationError]] = 200,
             item=None,
             accept: str = JSON,
@@ -76,7 +76,7 @@ class Client(EreuseUtilsClient):
              data: str or dict,
              uri: str = '',
              res: str = None,
-             query: dict = {},
+             query: Iterable[Tuple[str, Any]] = tuple(),
              status: Union[int, Type[HTTPException], Type[ValidationError]] = 201,
              content_type: str = JSON,
              accept: str = JSON,
@@ -91,7 +91,7 @@ class Client(EreuseUtilsClient):
               data: str or dict,
               uri: str = '',
               res: str = None,
-              query: dict = {},
+              query: Iterable[Tuple[str, Any]] = tuple(),
               item=None,
               status: Union[int, Type[HTTPException], Type[ValidationError]] = 200,
               content_type: str = JSON,
@@ -106,7 +106,7 @@ class Client(EreuseUtilsClient):
     def post_get(self,
                  res: str,
                  data: str or dict,
-                 query: dict = {},
+                 query: Iterable[Tuple[str, Any]] = tuple(),
                  status: Union[int, Type[HTTPException], Type[ValidationError]] = 200,
                  content_type: str = JSON,
                  accept: str = JSON,
