@@ -20,7 +20,7 @@ class Client(EreuseUtilsClient):
              content_type=JSON,
              item=None,
              headers: dict = None,
-             token: str = None, **kw) -> (dict or str, Response):
+             token: str = None, **kw) -> Tuple[Union[dict, str], Response]:
         headers = headers or {}
         if res:
             resource_url = self.application.resources[res].url_prefix + '/'
@@ -46,7 +46,7 @@ class Client(EreuseUtilsClient):
             accept: str = JSON,
             headers: dict = None,
             token: str = None,
-            **kw) -> (dict or str, Response):
+            **kw) -> Tuple[Union[dict, str], Response]:
         """
         Performs GET.
 
@@ -82,7 +82,7 @@ class Client(EreuseUtilsClient):
              accept: str = JSON,
              headers: dict = None,
              token: str = None,
-             **kw) -> (dict or str, Response):
+             **kw) -> Tuple[Union[dict, str], Response]:
         kw['res'] = res
         kw['token'] = token
         return super().post(uri, data, query, status, content_type, accept, headers, **kw)
@@ -98,7 +98,7 @@ class Client(EreuseUtilsClient):
               accept: str = JSON,
               token: str = None,
               headers: dict = None,
-              **kw) -> (dict or str, Response):
+              **kw) -> Tuple[Union[dict, str], Response]:
         kw['res'] = res
         kw['token'] = token
         return super().patch(uri, data, query, status, content_type, item, accept, headers, **kw)
@@ -112,7 +112,7 @@ class Client(EreuseUtilsClient):
                  accept: str = JSON,
                  headers: dict = None,
                  key='id',
-                 token: str = None, **kw) -> (dict or str, Response):
+                 token: str = None, **kw) -> Tuple[Union[dict, str], Response]:
         """Performs post and then gets the resource through its key."""
         r, _ = self.post('', data, res, query, status, content_type, accept, token, headers, **kw)
         return self.get(res=res, item=r[key])

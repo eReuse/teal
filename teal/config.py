@@ -1,9 +1,9 @@
-from typing import Dict, List, Type
+from typing import Dict, Set, Type
 
 from boltons.typeutils import issubclass
 from boltons.urlutils import URL
 
-from teal import resource
+from teal.resource import Resource
 
 
 class Config:
@@ -12,7 +12,7 @@ class Config:
 
     Subclass and set here your config values.
     """
-    RESOURCE_DEFINITIONS = []  # type: List[Type['resource.Resource']]
+    RESOURCE_DEFINITIONS = set()  # type: Set[Type[Resource]]
     """
     A list of resource definitions to load.
     """
@@ -45,7 +45,7 @@ class Config:
     Swagger definition object. Use values from `here <https://github.com
     /rochacbruno/flasgger#initializing-flasgger-with-default-data>`_ 
     """
-    SCHEMA = None
+    SCHEMA = None  # type: str
     """
     A string describing the main PostgreSQL's schema. ``None`` disables
     this functionality.
@@ -77,7 +77,8 @@ class Config:
         """
         :param db: Optional. Set the ``SQLALCHEMY_DATABASE_URI`` param.
         """
-        assert all(issubclass(r, resource.Resource) for r in self.RESOURCE_DEFINITIONS)
+        for r in self.RESOURCE_DEFINITIONS:
+            assert issubclass(r, Resource), '{0!r} is not a subclass of Resource'.format(r)
         if db:
             assert URL(db), 'Set a valid URI'
             self.SQLALCHEMY_DATABASE_URI = db

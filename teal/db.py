@@ -1,10 +1,12 @@
+import re
 from distutils.version import StrictVersion
 from typing import Type
 
 from boltons.typeutils import classproperty
 from boltons.urlutils import URL as BoltonsUrl
 from flask_sqlalchemy import Model as _Model, SQLAlchemy as FlaskSQLAlchemy, SignallingSession
-from sqlalchemy import CheckConstraint, event, types
+from sqlalchemy import CheckConstraint, cast, event, types
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Query as _Query, sessionmaker
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from werkzeug.exceptions import NotFound, UnprocessableEntity
@@ -151,3 +153,32 @@ def check_range(column: str, min=1, max=None) -> CheckConstraint:
     """Database constraint for ranged values."""
     constraint = '>= {}'.format(min) if max is None else 'BETWEEN {} AND {}'.format(min, max)
     return CheckConstraint('{} {}'.format(column, constraint))
+
+
+class ArrayOfEnum(ARRAY):
+    """
+    Allows to use Arrays of Enums for psql.
+
+    From `the docs <http://docs.sqlalchemy.org/en/latest/dialects/
+    postgresql.html?highlight=array#postgresql-array-of-enum>`_
+    and `this issue <https://bitbucket.org/zzzeek/sqlalchemy/issues/
+    3467/array-of-enums-does-not-allow-assigning>`_.
+    """
+
+    def bind_expression(self, bindvalue):
+        return cast(bindvalue, self)
+
+    def result_processor(self, dialect, coltype):
+        super_rp = super(ArrayOfEnum, self).result_processor(
+            dialect, coltype)
+
+        def handle_raw_string(value):
+            inner = re.match(r'^{(.*)}$', value).group(1)
+            return inner.split(',') if inner else []
+
+        def process(value):
+            if value is None:
+                return None
+            return super_rp(handle_raw_string(value))
+
+        return process

@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Callable, Iterable, Tuple, Type, Union
 
-from boltons.typeutils import classproperty
+from boltons.typeutils import classproperty, issubclass
 from ereuse_utils.naming import Naming
 from flasgger import SwaggerView
 from flask import Blueprint, current_app, g, request, url_for
@@ -307,6 +307,8 @@ class Resource(Blueprint):
                  url_defaults=None,
                  root_path=None,
                  cli_commands: Iterable[Tuple[Callable, str or None]] = tuple()):
+        assert issubclass(self.VIEW, View), 'VIEW should be an subclass of View'
+        assert issubclass(self.SCHEMA, Schema), 'SCHEMA should be a subclass of Schema'
         url_prefix = url_prefix if url_prefix is not None else '/{}'.format(self.resource)
         super().__init__(self.type, import_name, static_folder, static_url_path, template_folder,
                          url_prefix, subdomain, url_defaults, root_path)
