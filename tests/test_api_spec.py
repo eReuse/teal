@@ -19,7 +19,7 @@ def test_swagger(client: Client):
         '/components/', '/devices/{id}', '/devices/'
     }, 'Components, devices and computers are the only allowed paths'
     html, _ = client.get('/apidocs/', accept=ANY)
-    assert '<body class="swagger-section">' in html, 'The HTML must be swagger page'
+    assert 'swagger-ui' in html, 'The HTML must be swagger page'
 
 
 def test_swagger_auth(db: SQLAlchemy):

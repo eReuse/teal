@@ -1,11 +1,11 @@
 from distutils.version import StrictVersion
 from typing import Type
 
-from boltons.typeutils import issubclass
-from flask import current_app, g
+from flask import current_app as app, g
 from marshmallow import utils
 from marshmallow.fields import Field, Nested as MarshmallowNested, \
     ValidationError as _ValidationError, missing_
+from marshmallow.validate import Validator
 
 from teal.db import Model, SQLAlchemy
 from teal.resource import Schema
@@ -87,7 +87,7 @@ class NestedOn(MarshmallowNested):
             else:
                 value = {self.only: value}
         # New code:
-        parent_schema = current_app.resources[super().schema.t].SCHEMA
+        parent_schema = app.resources[super().schema.t].SCHEMA
         if self.many:
             return self.collection_class(self._deserialize_one(single, parent_schema, attr)
                                          for single in value)
@@ -99,7 +99,7 @@ class NestedOn(MarshmallowNested):
             raise ValidationError('\'Type\' field required to disambiguate resources.',
                                   field_names=[attr])
         type = value[self.polymorphic_on]
-        resource = current_app.resources[type]
+        resource = app.resources[type]
         if not issubclass(resource.SCHEMA, parent_schema):
             raise ValidationError('{} is not a sub-type of {}'.format(type, parent_schema.t),
                                   field_names=[attr])
@@ -128,6 +128,35 @@ class NestedOn(MarshmallowNested):
         ret = super().serialize(attr, obj, accessor)
         setattr(g, NestedOn.NESTED_LEVEL, g.get(NestedOn.NESTED_LEVEL) - 1)
         return ret
+
+
+class IsType(Validator):
+    """
+    Validator which succeeds if the value it is passed is a registered
+    resource type.
+
+    :param parent: If set, type must be a subtype of such resource.
+                   By default accept any resource.
+    """
+
+    no_type = 'Type does not exist.'
+    no_subtype = 'Type is not a descendant type of {parent}'
+
+    def __init__(self, parent: str = None) -> None:
+        self.parent = parent  # type: str
+
+    def _repr_args(self):
+        return 'parent={0!r}'.format(self.parent)
+
+    def __call__(self, type: str):
+        assert not self.parent or self.parent in app.resources
+        try:
+            r = app.resources[type]
+            if self.parent:
+                if not issubclass(r.__class__, app.resources[self.parent].__class__):
+                    raise ValidationError(self.no_subtype.format(self.parent))
+        except KeyError:
+            raise ValidationError(self.no_type)
 
 
 class ValidationError(_ValidationError):

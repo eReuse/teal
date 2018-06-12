@@ -4,6 +4,7 @@ Tests resources on the app level
 from typing import Tuple
 from unittest.mock import MagicMock
 
+import pytest
 from flask import Response, request
 from flask.json import jsonify
 from flask_sqlalchemy import SQLAlchemy
@@ -12,7 +13,7 @@ from werkzeug.exceptions import MethodNotAllowed, NotFound, UnprocessableEntity
 
 from teal.client import Client
 from teal.config import Config
-from teal.marshmallow import ValidationError
+from teal.marshmallow import IsType, ValidationError
 from teal.resource import Resource as ResourceDef
 from teal.teal import Teal
 from tests.conftest import populated_db
@@ -61,6 +62,21 @@ def test_models(app: Teal, db: SQLAlchemy):
         db.session.add(pc)
         queried_pc = Computer.query.first()
         assert pc == queried_pc
+
+
+def test_validator_is_type(app: Teal):
+    """Checks the validator IsType"""
+    with app.app_context():
+        is_type = IsType()
+        is_type('Device')
+        is_type('Component')
+        with pytest.raises(ValidationError):
+            is_type('Foo')
+
+        is_subtype = IsType('Component')
+        is_subtype('Component')
+        with pytest.raises(ValidationError):
+            is_subtype('Computer')
 
 
 def test_inheritance_access(fconfig: Config, db: SQLAlchemy):
