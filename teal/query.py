@@ -1,6 +1,11 @@
+import json
+from json import JSONDecodeError
+
+from ereuse_utils import flatten_mixed
 from marshmallow import Schema as MarshmallowSchema
-from marshmallow.fields import Field, List, Str, missing_
-from sqlalchemy import Column, and_, between, or_
+from marshmallow.fields import Boolean, Field, List, Nested, Str, missing_
+from sqlalchemy import Column, between, or_
+from webargs.flaskparser import FlaskParser
 
 
 class ListQuery(List):
@@ -94,6 +99,18 @@ class ILike(Str):
         return self.column.ilike('{}%'.format(v))
 
 
+class Join(Nested):
+    def __init__(self, join,
+                 nested, default=missing_, exclude=tuple(), only=None, **kwargs):
+        super().__init__(nested, default, exclude, only, **kwargs)
+        self.join = join
+
+    def _deserialize(self, value, attr, data):
+        v = list(super()._deserialize(value, attr, data))
+        v.append(self.join)
+        return v
+
+
 class Query(MarshmallowSchema):
     """
     A Marshmallow schema that outputs SQLAlchemy queries when ``loading``
@@ -106,7 +123,7 @@ class Query(MarshmallowSchema):
         # Executes query SELECT ... WHERE foocolumn IS LIKE 'bar%'
 
     When used with ``webargs`` library you can pass generate queries
-    directly from the browser: ``foo.com/foo/?where={'foo': 'bar'}``.
+    directly from the browser: ``foo.com/foo/?filter={'foo': 'bar'}``.
     """
 
     def load(self, data, many=None, partial=None):
@@ -114,14 +131,62 @@ class Query(MarshmallowSchema):
         Flatten ``Nested`` ``Query`` and add the list of results to
         a SQL ``AND``.
         """
-        values = []
-        for x in super().load(data, many, partial).values():
-            if isinstance(x, list):
-                for y in x:
-                    values.append(y)
-            else:
-                values.append(x)
-        return and_(*values)
+        values = super().load(data, many, partial).values()
+        return flatten_mixed(values)
 
     def dump(self, obj, many=None, update_fields=True):
         raise NotImplementedError('Why would you want to dump a query?')
+
+
+class Sort(MarshmallowSchema):
+    """
+    A Marshmallow schema that outputs SQLAlchemy order clauses::
+
+        class MySort(Sort):
+            foo = SortField(MyModel.foocolumn)
+        MyModel.query.filter(...).order_by(*MyQuery().load({'foo': 0})).all()
+
+    When used with ``webargs`` library you can pass generate sorts
+    directly from the browser: ``foo.com/foo/?sort={'foo': 1, 'bar': 0}``.
+    """
+
+    ASCENDING = True
+    """Sort in ascending order."""
+    DESCENDING = False
+    """Sort in descending order."""
+
+    def load(self, data, many=None, partial=None):
+        values = super().load(data, many, partial).values()
+        return flatten_mixed(values)
+
+
+class SortField(Boolean):
+    """A field that outputs a SQLAlchemy order clause."""
+
+    def __init__(self, column: Column, truthy=Boolean.truthy, falsy=Boolean.falsy, **kwargs):
+        super().__init__(truthy, falsy, **kwargs)
+        self.column = column
+
+    def _deserialize(self, value, attr, data):
+        v = super()._deserialize(value, attr, data)
+        return self.column.asc() if v else self.column.desc()
+
+
+class NestedQueryFlaskParser(FlaskParser):
+    """
+    Parses JSON-encoded URL parameters like
+    ``.../foo?param={"x": "y"}&param2=["x", "y"]``, and it still allows
+    normal non-JSON-encoded params ``../foo?param=23&param2={"a": "b"}``.
+    """
+
+    def parse_querystring(self, req, name, field):
+        v = super().parse_querystring(req, name, field)
+        try:
+            return json.loads(v)
+        except (JSONDecodeError, TypeError):
+            return v
+
+
+class FullTextSearch(Str):
+    # todo this is dummy for now
+    pass

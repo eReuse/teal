@@ -16,7 +16,7 @@ from werkzeug.wsgi import DispatcherMiddleware
 from teal.auth import Auth
 from teal.client import Client
 from teal.config import Config as ConfigClass
-from teal.json import TealJSONEncoder
+from teal.json_util import TealJSONEncoder
 from teal.request import Request
 from teal.resource import Resource
 

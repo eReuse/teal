@@ -4,10 +4,11 @@ from typing import Type
 
 from boltons.typeutils import classproperty
 from boltons.urlutils import URL as BoltonsUrl
-from flask_sqlalchemy import Model as _Model, SQLAlchemy as FlaskSQLAlchemy, SignallingSession
+from flask_sqlalchemy import BaseQuery, Model as _Model, SQLAlchemy as FlaskSQLAlchemy, \
+    SignallingSession
 from sqlalchemy import CheckConstraint, cast, event, types
 from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy.orm import Query as _Query, sessionmaker
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from werkzeug.exceptions import NotFound, UnprocessableEntity
 
@@ -32,7 +33,7 @@ CASCADE_OWN = '{}, delete-orphan'.format(CASCADE)
 DB_CASCADE_SET_NULL = 'SET NULL'
 
 
-class Query(_Query):
+class Query(BaseQuery):
     def one(self):
         try:
             return super().one()

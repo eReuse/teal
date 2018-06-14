@@ -1,6 +1,7 @@
 from enum import Enum
-from typing import Callable, Iterable, Tuple, Type, Union
+from typing import Callable, Iterable, Iterator, Tuple, Type, Union
 
+from anytree import PreOrderIter
 from boltons.typeutils import classproperty, issubclass
 from ereuse_utils.naming import Naming
 from flasgger import SwaggerView
@@ -8,11 +9,11 @@ from flask import Blueprint, current_app, g, request, url_for
 from flask.json import jsonify
 from marshmallow import Schema as MarshmallowSchema, SchemaOpts as MarshmallowSchemaOpts, \
     ValidationError, post_dump, pre_load, validates_schema
-from webargs.flaskparser import parser
 from werkzeug.exceptions import MethodNotAllowed
 
 from teal.auth import Auth
 from teal.db import Model, SQLAlchemy
+from teal.query import NestedQueryFlaskParser
 
 
 class SchemaOpts(MarshmallowSchemaOpts):
@@ -162,6 +163,7 @@ class View(SwaggerView):
     """
     A REST interface for resources.
     """
+    QUERY_PARSER = NestedQueryFlaskParser()
 
     class FindArgs(MarshmallowSchema):
         """
@@ -174,6 +176,7 @@ class View(SwaggerView):
         """The ResourceDefinition tied to this view."""
         self.schema = None  # type: Schema
         """The schema tied to this view."""
+        self.find_args = self.FindArgs()
         super().__init__()
 
     @classmethod
@@ -227,7 +230,9 @@ class View(SwaggerView):
         if id:
             response = self.one(id)
         else:
-            args = parser.parse(self.FindArgs(), request, locations={'querystring'})
+            args = self.QUERY_PARSER.parse(self.find_args,
+                                           request,
+                                           locations=('querystring',))
             response = self.find(args)
         return response
 
@@ -355,6 +360,11 @@ class Resource(Blueprint):
         No need to commit.
         """
         pass
+
+    @property
+    def subresources_types(self) -> Iterator[str]:
+        """Gets the types of the subresources."""
+        return (node.name for node in PreOrderIter(self.app.tree[self.t]))
 
 
 def url_for_resource(

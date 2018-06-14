@@ -138,7 +138,7 @@ class IsType(Validator):
     :param parent: If set, type must be a subtype of such resource.
                    By default accept any resource.
     """
-
+    # todo remove if not needed
     no_type = 'Type does not exist.'
     no_subtype = 'Type is not a descendant type of {parent}'
 
