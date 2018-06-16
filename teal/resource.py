@@ -264,7 +264,7 @@ class Converters(Enum):
     float = 'float'
     path = 'path'
     any = 'any'
-    uid = 'uuid'
+    uuid = 'uuid'
 
 
 class Resource(Blueprint):
