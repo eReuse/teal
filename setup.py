@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="teal",
-    version='0.2.0a1',
+    version='0.2.0a2',
     packages=find_packages(),
     url='https://github.com/bustawin/teal',
     license='BSD',
@@ -13,9 +13,9 @@ setup(
         'anytree',
         'apispec',
         'boltons',
-        'ereuse-utils>=0.3.0b1',
-        'ereuse-utils[naming]>=0.3.0b1',
-        'ereuse-utils[test]>=0.3.0b1',
+        'ereuse-utils>=0.3.0b2',
+        'ereuse-utils[naming]>=0.3.0b2',
+        'ereuse-utils[test]>=0.3.0b2',
         'flasgger',
         'flask>=1.0',
         'flask-sqlalchemy',
