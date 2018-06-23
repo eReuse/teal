@@ -1,21 +1,24 @@
 from setuptools import find_packages, setup
 
+with open('README.md') as f:
+    long_description = f.read()
+
 setup(
-    name="teal",
-    version='0.2.0a2',
+    name='teal',
+    version='0.2.0a4',
     packages=find_packages(),
-    url='https://github.com/bustawin/teal',
+    url='https://github.com/ereuse/teal',
     license='BSD',
     author='Xavier Bustamante Talavera',
     author_email='xavier@bustawin.com',
     description='RESTful Flask for big applications.',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     install_requires=[
         'anytree',
         'apispec',
         'boltons',
-        'ereuse-utils>=0.3.0b2',
-        'ereuse-utils[naming]>=0.3.0b2',
-        'ereuse-utils[test]>=0.3.0b2',
+        'ereuse-utils[naming, test]>=0.3.0b2',
         'flasgger',
         'flask>=1.0',
         'flask-sqlalchemy',
