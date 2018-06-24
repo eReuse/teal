@@ -36,15 +36,6 @@ class Config:
     <https://stackoverflow.com/a/33790196>`_. 
     """
 
-    SWAGGER = {
-        'info': {
-            'title': 'Teal API',
-        }
-    }
-    """
-    Swagger definition object. Use values from `here <https://github.com
-    /rochacbruno/flasgger#initializing-flasgger-with-default-data>`_ 
-    """
     SCHEMA = None  # type: str
     """
     A string describing the main PostgreSQL's schema. ``None`` disables
@@ -69,8 +60,23 @@ class Config:
     between them.
     
     Note that this only works with PostgreSQL.
+    """
+
+    API_DOC_CONFIG_TITLE = 'Teal'
+    API_DOC_CONFIG_VERSION = '0.1'
+    """
+    Configuration options for the api docs. They are the parameters
+    passed to `apispec <http://apispec.readthedocs.io/en/
+    latest/api_core.html#apispec.APISpec>`_. Prefix the configuration
+    names with ``API_DOC_CONFIG_``.
+    """
+    API_DOC_CLASS_DISCRIMINATOR = None
+    """
+    Configuration options for the api docs class definitions.
     
-    See 
+    You can pass any `schema definition <https://github.com/OAI/
+    OpenAPI-Specification/blob/master/versions/2.0.md#schemaObject>`_
+    prefiex by ``API_DOC_CLASS_`` like in the example above.
     """
 
     def __init__(self, db: str = None) -> None:

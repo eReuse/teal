@@ -91,6 +91,7 @@ def test_resource_without_path(config: Config, db: SQLAlchemy):
     """Test resources that don't have url_prefix."""
 
     class FooDef(Resource):
+        VIEW = View
         __type__ = 'Foo'
 
         def __init__(self, app,

@@ -19,10 +19,8 @@ setup(
         'apispec',
         'boltons',
         'ereuse-utils[naming, test]>=0.3.0b2',
-        'flasgger',
         'flask>=1.0',
         'flask-sqlalchemy',
-        'marshmallow-jsonschema',
         'marshmallow==3.0.0b9',
         'webargs'
     ],

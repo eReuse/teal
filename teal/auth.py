@@ -20,7 +20,7 @@ class Auth:
        teal can use it.
     """
 
-    SWAGGER = {
+    API_DOCS = {
         'type': 'http',
         'description:': 'HTTP Basic scheme',
         'name': 'Authorization',
@@ -66,8 +66,8 @@ class Auth:
 
 
 class TokenAuth(Auth):
-    SWAGGER = Auth.SWAGGER.copy()
-    SWAGGER['description'] = 'Basic scheme with token.'
+    API_DOCS = Auth.API_DOCS.copy()
+    API_DOCS['description'] = 'Basic scheme with token.'
 
     def authenticate(self, token: str, *args, **kw) -> object:
         """

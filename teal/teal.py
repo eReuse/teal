@@ -2,14 +2,13 @@ import inspect
 from typing import Dict, Iterable, Tuple, Type
 
 from anytree import Node
+from apispec import APISpec
 from click import option
 from ereuse_utils import ensure_utf8
-from flasgger import Swagger
 from flask import Flask, Response, jsonify
 from flask.globals import _app_ctx_stack
 from flask_sqlalchemy import SQLAlchemy
 from marshmallow import ValidationError
-from marshmallow_jsonschema import JSONSchema
 from werkzeug.exceptions import HTTPException, UnprocessableEntity
 from werkzeug.wsgi import DispatcherMiddleware
 
@@ -54,12 +53,11 @@ class Teal(Flask):
         self.load_resources()
         self.register_error_handler(HTTPException, self._handle_standard_error)
         self.register_error_handler(ValidationError, self._handle_validation_error)
-        self.swag = Swagger(self)
-        self.add_url_rule('/schemas', view_func=self.view_schemas, methods={'GET'})
-        self.json_schema = JSONSchema()
         self.db = db
         db.init_app(self)
         self.cli.command('init-db')(self.init_db)
+        self.spec = None  # type: APISpec
+        self.apidocs()
 
     # noinspection PyAttributeOutsideInit
     def load_resources(self):
@@ -121,15 +119,6 @@ class Teal(Flask):
         response.status_code = UnprocessableEntity.code
         return response
 
-    def view_schemas(self):
-        """Return all schemas in custom JSON Schema format."""
-        # todo decide if finally use this
-        schemas = {
-            r.schema.type: self.json_schema.dump(r.schema).data
-            for r in self.resources.values()
-        }
-        return jsonify(schemas)
-
     @option('--erase/--no-erase', default=False, help='Delete all db contents before?')
     def init_db(self, erase: bool = False):
         """
@@ -151,6 +140,31 @@ class Teal(Flask):
         for resource in self.resources.values():
             resource.init_db(self.db)
         self.db.session.commit()
+
+    def apidocs(self):
+        """Apidocs configuration and generation."""
+        self.spec = APISpec(
+            plugins=(
+                'apispec.ext.flask',
+                'apispec.ext.marshmallow',
+            ),
+            **self.config.get_namespace('API_DOC_CONFIG_')
+        )
+        for name, resource in self.resources.items():
+            self.spec.definition(name,
+                                 schema=resource.SCHEMA,
+                                 extra_fields=self.config.get_namespace('API_DOC_CLASS_'))
+        self.add_url_rule('/apidocs', view_func=self.apidocs_endpoint)
+
+    def apidocs_endpoint(self):
+        """An endpoint that prints a JSON OpenApi 2.0 specification."""
+        if not getattr(self, '_apidocs', None):
+            # We are forced to to this under a request context
+            for path, view_func in self.view_functions.items():
+                if path != 'static':
+                    self.spec.add_path(view=view_func)
+            self._apidocs = self.spec.to_dict()
+        return jsonify(self._apidocs)
 
 
 def prefixed_database_factory(Config: Type[ConfigClass],

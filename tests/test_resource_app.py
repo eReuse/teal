@@ -39,12 +39,8 @@ def test_init(app: Teal):
         'Component.main',
         'Computer.main',
         'Device.main',
-        'flasgger.<lambda>',
-        'flasgger.apidocs',
-        'flasgger.apispec_1',
-        'flasgger.static',
-        'static',
-        'view_schemas'
+        'apidocs_endpoint',
+        'static'
     }
     assert views == set(app.view_functions.keys())
 

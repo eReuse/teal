@@ -4,14 +4,13 @@ from typing import Callable, Iterable, Iterator, Tuple, Type, Union
 from anytree import PreOrderIter
 from boltons.typeutils import classproperty, issubclass
 from ereuse_utils.naming import Naming
-from flasgger import SwaggerView
 from flask import Blueprint, current_app, g, request, url_for
 from flask.json import jsonify
+from flask.views import MethodView
 from marshmallow import Schema as MarshmallowSchema, SchemaOpts as MarshmallowSchemaOpts, \
     ValidationError, post_dump, pre_load, validates_schema
 from werkzeug.exceptions import MethodNotAllowed
 
-from teal.auth import Auth
 from teal.db import Model, SQLAlchemy
 from teal.query import NestedQueryFlaskParser
 
@@ -159,7 +158,7 @@ class Schema(MarshmallowSchema):
         return jsonify(self.dump(model, many, update_fields, nested, polymorphic_on))
 
 
-class View(SwaggerView):
+class View(MethodView):
     """
     A REST interface for resources.
     """
@@ -179,35 +178,6 @@ class View(SwaggerView):
         self.find_args = self.FindArgs()
         super().__init__()
 
-    @classmethod
-    def as_view(cls, name, *class_args, **class_kwargs):
-        definition = class_kwargs['definition']  # type: Resource
-        cls.definitions = {
-            # todo if we use the SCHEMA.type instead of the name
-            # flassger doesn't match it with the respones.200.schema
-            # below and dies
-            definition.SCHEMA.__name__: definition.SCHEMA
-        }
-        """
-        Input parameters, through body or in the URL query. You can
-        override them in each endpoint like we do in :meth:`.get` 
-        """
-        cls.responses = {
-            200: {
-                'description': 'A Schema.',
-                'schema': definition.SCHEMA
-            }
-        }
-        """
-        The default response for these endpoints. You can override
-        it per endpoint.
-        """
-        if definition.AUTH:
-            auth = class_kwargs['auth']  # type: Auth
-            cls.security = auth.SWAGGER
-            """The security endpoint for this view."""
-        return super().as_view(name, *class_args, **class_kwargs)
-
     def dispatch_request(self, *args, **kwargs):
         # This is unique for each view call
         self.schema = g.schema
@@ -218,14 +188,17 @@ class View(SwaggerView):
         return super().dispatch_request(*args, **kwargs)
 
     def get(self, id):
-        """
-        Get a collection of resources or a specific one.
-
+        """Get a collection of resources or a specific one.
         ---
         parameters:
-          - name: id
-            in: path
-            description: The identifier of the resource.
+        - name: id
+          in: path
+          description: The identifier of the resource.
+          type: string
+          required: false
+        responses:
+          200:
+            description: Return the collection or the specific one.
         """
         if id:
             response = self.one(id)
@@ -276,8 +249,11 @@ class Resource(Blueprint):
     :class:`flask.blueprints.Blueprint` that provides everything
     needed to set a REST endpoint.
     """
-    VIEW = View  # type: Type[View]
-    """Resource view linked to this definition."""
+    VIEW = None  # type: Type[View]
+    """
+    Resource view linked to this definition or None.
+    If none, this resource does not generate any view.
+    """
     SCHEMA = Schema  # type: Type[Schema]
     """The Schema that validates a submitting resource at the entry point."""
     AUTH = False
@@ -312,7 +288,7 @@ class Resource(Blueprint):
                  url_defaults=None,
                  root_path=None,
                  cli_commands: Iterable[Tuple[Callable, str or None]] = tuple()):
-        assert issubclass(self.VIEW, View), 'VIEW should be an subclass of View'
+        assert not self.VIEW or issubclass(self.VIEW, View), 'VIEW should be an subclass of View'
         assert issubclass(self.SCHEMA, Schema), 'SCHEMA should be a subclass of Schema'
         url_prefix = url_prefix if url_prefix is not None else '/{}'.format(self.resource)
         super().__init__(self.type, import_name, static_folder, static_url_path, template_folder,
@@ -320,13 +296,14 @@ class Resource(Blueprint):
         self.app = app
         self.schema = self.SCHEMA()
         # Views
-        view = self.VIEW.as_view('main', definition=self, auth=app.auth)
-        if self.AUTH:
-            view = app.auth.requires_auth(view)
-        self.add_url_rule('/', defaults={'id': None}, view_func=view, methods={'GET'})
-        self.add_url_rule('/', view_func=view, methods={'POST'})
-        self.add_url_rule('/<{}:{}>'.format(self.ID_CONVERTER.value, self.ID_NAME),
-                          view_func=view, methods={'GET', 'PUT', 'DELETE'})
+        if self.VIEW:
+            view = self.VIEW.as_view('main', definition=self, auth=app.auth)
+            if self.AUTH:
+                view = app.auth.requires_auth(view)
+            self.add_url_rule('/', defaults={'id': None}, view_func=view, methods={'GET'})
+            self.add_url_rule('/', view_func=view, methods={'POST'})
+            self.add_url_rule('/<{}:{}>'.format(self.ID_CONVERTER.value, self.ID_NAME),
+                              view_func=view, methods={'GET', 'PUT', 'DELETE'})
         self.cli_commands = cli_commands
         self.before_request(self.load_resource)
 

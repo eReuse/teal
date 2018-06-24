@@ -6,6 +6,7 @@ from marshmallow import utils
 from marshmallow.fields import Field, Nested as MarshmallowNested, \
     ValidationError as _ValidationError, missing_
 from marshmallow.validate import Validator
+from marshmallow_enum import EnumField as _EnumField
 
 from teal.db import Model, SQLAlchemy
 from teal.resource import Schema
@@ -161,3 +162,14 @@ class IsType(Validator):
 
 class ValidationError(_ValidationError):
     code = 422
+
+
+class EnumField(_EnumField):
+    """
+    An EnumField that allows
+    generating OpenApi enums through Apispec.
+    """
+    def __init__(self, enum, by_value=False, load_by=None, dump_by=None, error='', *args,
+                 **kwargs):
+        super().__init__(enum, by_value, load_by, dump_by, error, *args, **kwargs)
+        self.metadata['enum'] = [e.name for e in enum]

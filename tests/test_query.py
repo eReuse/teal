@@ -38,7 +38,8 @@ def test_query_join(app: Teal):
         schema = Q()
         query = schema.load({'idq': [1, 4], 'componentq': {'foo': 'bar'}})
         s, params = compiled(Device, query)
-        assert 'device.id BETWEEN %(id_1)s AND %(id_2)s AND device.model ILIKE %(model_1)s' in s
+        assert 'device.id BETWEEN %(id_1)s AND %(id_2)s' in s
+        assert 'device.model ILIKE %(model_1)s' in s
         assert params == {'id_1': 1, 'model_1': 'bar%', 'id_2': 4}
 
 
