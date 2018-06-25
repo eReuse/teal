@@ -79,6 +79,15 @@ class Config:
     prefiex by ``API_DOC_CLASS_`` like in the example above.
     """
 
+    CORS_ORIGINS = '*'
+    CORS_EXPOSE_HEADERS = 'Authorization'
+    CORS_ALLOW_HEADERS = 'Content-Type', 'Authorization'
+    """
+    Configuration for CORS. See the options you can pass by in `Flask-Cors 
+    <https://flask-cors.corydolphin.com/en/latest/api.html#extension>`_,
+    exactly in **Parameters**, like the ones above.
+    """
+
     def __init__(self, db: str = None) -> None:
         """
         :param db: Optional. Set the ``SQLALCHEMY_DATABASE_URI`` param.

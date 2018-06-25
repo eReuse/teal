@@ -1,6 +1,7 @@
 import inspect
 from typing import Dict, Iterable, Tuple, Type
 
+import flask_cors
 from anytree import Node
 from apispec import APISpec
 from click import option
@@ -48,6 +49,7 @@ class Teal(Flask):
                          subdomain_matching, template_folder, instance_path,
                          instance_relative_config, root_path)
         self.config.from_object(config)
+        flask_cors.CORS(self)
         # Load databases
         self.auth = Auth()
         self.load_resources()

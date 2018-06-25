@@ -5,7 +5,7 @@ with open('README.md') as f:
 
 setup(
     name='teal',
-    version='0.2.0a4',
+    version='0.2.0a5',
     packages=find_packages(),
     url='https://github.com/ereuse/teal',
     license='BSD',
@@ -22,7 +22,8 @@ setup(
         'flask>=1.0',
         'flask-sqlalchemy',
         'marshmallow==3.0.0b9',
-        'webargs'
+        'webargs',
+        'flask-cors'
     ],
     tests_requires=[
         'pytest',

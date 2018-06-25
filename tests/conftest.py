@@ -91,7 +91,7 @@ def f_config(config: Config, db: SQLAlchemy) -> Config:
         }
 
     class ComponentView(DeviceView):
-        foo = Str()
+        pass
 
     class ComponentDef(DeviceDef):
         SCHEMA = ComponentSchema
