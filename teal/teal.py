@@ -1,6 +1,7 @@
 import inspect
 from typing import Dict, Iterable, Tuple, Type
 
+import click_spinner
 import flask_cors
 from anytree import Node
 from apispec import APISpec
@@ -136,12 +137,14 @@ class Teal(Flask):
         Resource.load_resource`.
         """
         assert _app_ctx_stack.top, 'Use an app context.'
-        if erase:
-            self.db.drop_all()
-        self.db.create_all()
-        for resource in self.resources.values():
-            resource.init_db(self.db)
-        self.db.session.commit()
+        print('Initializing database...'.ljust(30), end='')
+        with click_spinner.spinner():
+            if erase:
+                self.db.drop_all()
+            self.db.create_all()
+            for resource in self.resources.values():
+                resource.init_db(self.db)
+            self.db.session.commit()
 
     def apidocs(self):
         """Apidocs configuration and generation."""

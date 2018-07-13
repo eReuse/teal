@@ -114,8 +114,9 @@ class SQLAlchemy(FlaskSQLAlchemy):
         self.set_search_path(target, connection)
 
     def set_search_path(self, _, connection, **kw):
-        if self._app.config['SCHEMA']:
-            connection.execute('SET search_path TO {}, public'.format(self._app.config['SCHEMA']))
+        app = self.get_app()
+        if app.config['SCHEMA']:
+            connection.execute('SET search_path TO {}, public'.format(app.config['SCHEMA']))
 
     def revert_connection(self, _, connection, **kw):
         connection.execute('SET search_path TO public')
@@ -123,6 +124,13 @@ class SQLAlchemy(FlaskSQLAlchemy):
     def create_session(self, options):
         """As parent's create_session but adding our SchemaSession."""
         return sessionmaker(class_=SchemaSession, db=self, **options)
+
+    def drop_schema(self, app=None, schema=None):
+        """Nukes a schema and everything that depends on it."""
+        app = self.get_app(app)
+        schema = schema or app.config['SCHEMA']
+        with self.engine.begin() as conn:
+            conn.execute('DROP SCHEMA {} CASCADE'.format(schema))
 
 
 class StrictVersionType(types.TypeDecorator):
