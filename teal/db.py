@@ -130,7 +130,21 @@ class SQLAlchemy(FlaskSQLAlchemy):
         app = self.get_app(app)
         schema = schema or app.config['SCHEMA']
         with self.engine.begin() as conn:
-            conn.execute('DROP SCHEMA {} CASCADE'.format(schema))
+            conn.execute('DROP SCHEMA IF EXISTS {} CASCADE'.format(schema))
+
+
+def if_none_return_none(f):
+    """
+    If the value is None, just return None; otherwise execute the
+    function.
+    """
+
+    def wrapper(self, value, dialect):
+        if value is None:
+            return None
+        return f(self, value, dialect)
+
+    return wrapper
 
 
 class StrictVersionType(types.TypeDecorator):
@@ -141,20 +155,26 @@ class StrictVersionType(types.TypeDecorator):
     """
     impl = types.Unicode
 
+    @if_none_return_none
     def process_bind_param(self, value, dialect):
         return str(value)
 
+    @if_none_return_none
     def process_result_value(self, value, dialect):
         return StrictVersion(value)
 
 
 class URL(types.TypeDecorator):
+    # todo improve
     impl = types.Unicode
 
+    @if_none_return_none
     def process_bind_param(self, value, dialect):
         str(value)
 
+    @if_none_return_none
     def process_result_value(self, value, dialect):
+        # todo shall we return the object?
         BoltonsUrl(value)
 
 
