@@ -1,6 +1,9 @@
-from typing import Dict, Tuple
+import inspect
+from typing import Dict, Iterator, Tuple
 
 from sqlalchemy.dialects import postgresql
+
+from teal.resource import Resource
 
 
 def compiled(Model, query) -> Tuple[str, Dict[str, str]]:
@@ -11,3 +14,15 @@ def compiled(Model, query) -> Tuple[str, Dict[str, str]]:
     """
     c = Model.query.filter(*query).statement.compile(dialect=postgresql.dialect())
     return str(c), c.params
+
+
+def import_resource(module) -> Iterator[Resource]:
+    """
+    Gets the resource classes from the passed-in module.
+
+    This method yields subclasses of :class:`teal.resource.Resource`
+    found in the given module.
+    """
+    for obj in vars(module).values():
+        if inspect.isclass(obj) and issubclass(obj, Resource) and obj != Resource:
+            yield obj
