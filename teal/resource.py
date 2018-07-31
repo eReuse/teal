@@ -9,10 +9,8 @@ from flask.json import jsonify
 from flask.views import MethodView
 from marshmallow import Schema as MarshmallowSchema, SchemaOpts as MarshmallowSchemaOpts, \
     ValidationError, post_dump, pre_load, validates_schema
+from teal import db, query
 from werkzeug.exceptions import MethodNotAllowed
-
-from teal.db import Model, SQLAlchemy
-from teal.query import NestedQueryFlaskParser
 
 
 class SchemaOpts(MarshmallowSchemaOpts):
@@ -90,7 +88,7 @@ class Schema(MarshmallowSchema):
         return {key: value for key, value in data.items() if value is not None}
 
     def dump(self,
-             model: Union[Model, Iterable[Model]],
+             model: Union['db.Model', Iterable['db.Model']],
              many=None,
              update_fields=True,
              nested=None,
@@ -134,7 +132,7 @@ class Schema(MarshmallowSchema):
             else:
                 return self._polymorphic_dump(model, update_fields, polymorphic_on)
 
-    def _polymorphic_dump(self, obj: Model, update_fields, polymorphic_on='t'):
+    def _polymorphic_dump(self, obj: 'db.Model', update_fields, polymorphic_on='t'):
         schema = current_app.resources[getattr(obj, polymorphic_on)].schema
         if schema.t != self.t:
             return super(schema.__class__, schema).dump(obj, False, update_fields)
@@ -142,7 +140,7 @@ class Schema(MarshmallowSchema):
             return super().dump(obj, False, update_fields)
 
     def jsonify(self,
-                model: Model,
+                model: 'db.Model',
                 nested=1,
                 many=False,
                 update_fields: bool = True,
@@ -162,7 +160,7 @@ class View(MethodView):
     """
     A REST interface for resources.
     """
-    QUERY_PARSER = NestedQueryFlaskParser()
+    QUERY_PARSER = query.NestedQueryFlaskParser()
 
     class FindArgs(MarshmallowSchema):
         """
@@ -327,7 +325,7 @@ class Resource(Blueprint):
         g.schema = self.schema
         g.resource_def = self
 
-    def init_db(self, db: SQLAlchemy):
+    def init_db(self, db: 'db.SQLAlchemy'):
         """
         Put here code to execute when initializing the database for this
         resource.
@@ -345,7 +343,8 @@ class Resource(Blueprint):
 
 
 def url_for_resource(
-        resource: Union[Resource, Schema, Model, str, Type[Resource], Type[Schema], Type[Model]],
+        resource: Union[Resource, Schema, 'db.Model', str, Type[Resource],
+                        Type[Schema], Type['db.Model']],
         item_id=None) -> str:
     """
     As Flask's ``url_for``, this generates an URL but specifically for

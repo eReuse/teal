@@ -1,44 +1,88 @@
+import ipaddress
 from distutils.version import StrictVersion
-from typing import Type
+from typing import Type, Union
 
+import colour
+from boltons import urlutils
 from flask import current_app as app, g
 from marshmallow import utils
 from marshmallow.fields import Field, Nested as MarshmallowNested, \
     ValidationError as _ValidationError, missing_
 from marshmallow.validate import Validator
 from marshmallow_enum import EnumField as _EnumField
-
+from sqlalchemy_utils import PhoneNumber
 from teal.db import Model, SQLAlchemy
 from teal.resource import Schema
+from teal.utils import if_none_return_none
 
 
 class Version(Field):
     """A python StrictVersion field, like '1.0.1'."""
 
+    @if_none_return_none
     def _serialize(self, value, attr, obj):
-        return str(value) if value is not None else None
+        return str(value)
 
+    @if_none_return_none
     def _deserialize(self, value, attr, data):
-        return StrictVersion(value) if value is not None else None
+        return StrictVersion(value)
 
 
 class Color(Field):
     """Any color field that can be accepted by the colour package."""
 
+    @if_none_return_none
     def _serialize(self, value, attr, obj):
-        return str(value) if value is not None else None
+        return str(value)
 
+    @if_none_return_none
     def _deserialize(self, value, attr, data):
-        from colour import Color
-        return Color(value) if value is not None else None
+        return colour.Color(value)
 
 
 class URL(Field):
-    def _serialize(self, value, attr, obj):
-        return value.to_text() if value is not None else None
+    def __init__(self, require_path=False,
+                 default=missing_, attribute=None, data_key=None, error=None, validate=None,
+                 required=False, allow_none=None, load_only=False, dump_only=False,
+                 missing=missing_, error_messages=None, **metadata):
+        super().__init__(default, attribute, data_key, error, validate, required, allow_none,
+                         load_only, dump_only, missing, error_messages, **metadata)
+        self.require_path = require_path
 
+    @if_none_return_none
+    def _serialize(self, value, attr, obj):
+        return value.to_text()
+
+    @if_none_return_none
     def _deserialize(self, value, attr, data):
-        return URL(value) if value is not None else None
+        url = urlutils.URL(value)
+        if url.scheme or url.host:
+            if self.require_path:
+                if url.path and url.path != '/':
+                    return url
+            else:
+                return url
+        raise ValueError('Not a valid URL.')
+
+
+class IP(Field):
+    @if_none_return_none
+    def _serialize(self, value: Union[ipaddress.IPv4Address, ipaddress.IPv6Address], attr, obj):
+        return str(value)
+
+    @if_none_return_none
+    def _deserialize(self, value: str, attr, data):
+        return ipaddress.ip_address(value)
+
+
+class Phone(Field):
+    @if_none_return_none
+    def _serialize(self, value: PhoneNumber, attr, obj):
+        return value.international
+
+    @if_none_return_none
+    def _deserialize(self, value: str, attr, data):
+        return PhoneNumber(value)
 
 
 class NestedOn(MarshmallowNested):
@@ -169,6 +213,7 @@ class EnumField(_EnumField):
     An EnumField that allows
     generating OpenApi enums through Apispec.
     """
+
     def __init__(self, enum, by_value=False, load_by=None, dump_by=None, error='', *args,
                  **kwargs):
         super().__init__(enum, by_value, load_by, dump_by, error, *args, **kwargs)

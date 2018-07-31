@@ -10,6 +10,7 @@ from sqlalchemy import CheckConstraint, cast, event, types
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+from teal.utils import if_none_return_none
 from werkzeug.exceptions import NotFound, UnprocessableEntity
 
 
@@ -131,20 +132,6 @@ class SQLAlchemy(FlaskSQLAlchemy):
         schema = schema or app.config['SCHEMA']
         with self.engine.begin() as conn:
             conn.execute('DROP SCHEMA IF EXISTS {} CASCADE'.format(schema))
-
-
-def if_none_return_none(f):
-    """
-    If the value is None, just return None; otherwise execute the
-    function.
-    """
-
-    def wrapper(self, value, dialect):
-        if value is None:
-            return None
-        return f(self, value, dialect)
-
-    return wrapper
 
 
 class StrictVersionType(types.TypeDecorator):
