@@ -394,10 +394,24 @@ class Country(Enum):
     ZM = "Zambia"
     ZW = "Zimbabwe"
 
+    def __contains__(self, item: 'Subdivision'):
+        """Checks if a Subdivision is inside of this Country."""
+        if not isinstance(item, Subdivision):
+            raise TypeError('Only subdivisions can be inside a country.')
+        return item.country == self
+
+
+class SubdivisionMixin:
+    @property
+    def country(self: Enum) -> Country:
+        """Returns the Country of the Subdivision."""
+        return Country[self.name[0:2]]
+
 
 # noinspection PyArgumentList
 Subdivision = Enum(
     'Subdivision',
+    type=SubdivisionMixin,
     module=__name__,
     names=(
         'AE-AJ',
@@ -4277,6 +4291,7 @@ Subdivision = Enum(
         'ZW-MW'
     )
 )
+
 Subdivision.__doc__ = """
 Subvidision country codes from ISO 3166-2.
 

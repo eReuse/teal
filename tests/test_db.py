@@ -1,11 +1,14 @@
+import ipaddress
 from distutils.version import StrictVersion
 
 import pytest
+from boltons import urlutils
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.exceptions import NotFound
 
-from teal.db import StrictVersionType
+from teal.db import IP, StrictVersionType, URL
 from teal.teal import Teal
+from tests import conftest
 
 
 def test_not_found(app: Teal):
@@ -38,10 +41,36 @@ def test_db_psql_schemas(db: SQLAlchemy):
     # todo do this
 
 
+@pytest.mark.usefixtures(conftest.app_context.__name__)
 def test_db_strict_version_type(db: SQLAlchemy):
     class Foo(db.Model):
         id = db.Column(db.Integer, primary_key=True)
         bar = db.Column(StrictVersionType)
 
+    db.create_all()
     foo = Foo(id=1, bar=StrictVersion('1.0.0a1'))
     assert isinstance(foo.bar, StrictVersion)
+    db.session.add(foo)
+    db.session.commit()
+
+
+@pytest.mark.usefixtures(conftest.app_context.__name__)
+def test_db_url(db: SQLAlchemy):
+    class Foo(db.Model):
+        id = db.Column(db.Integer, primary_key=True)
+        bar = db.Column(URL)
+
+    db.create_all()
+    foo = Foo(id=1, bar=urlutils.URL('http://foo.com/bar'))
+    assert isinstance(foo.bar, urlutils.URL)
+    db.session.add(foo)
+    db.session.commit()
+
+
+def test_db_ip():
+    # We cannot actually try this on the db as we use sqlite for testing
+    ip = IP()
+    x = ip.process_bind_param(ipaddress.ip_address('192.168.1.1'), None)
+    assert x == '192.168.1.1'
+    y = ip.process_result_value('192.168.1.1', None)
+    assert str(y) == '192.168.1.1'

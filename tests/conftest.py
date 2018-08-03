@@ -131,6 +131,12 @@ def app(fconfig: Config, db: SQLAlchemy) -> Teal:
 
 
 @pytest.fixture()
+def app_context(app: Teal):
+    with app.app_context():
+        yield
+
+
+@pytest.fixture()
 def client(app: Teal) -> Client:
     return app.test_client()
 

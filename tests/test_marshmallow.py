@@ -6,6 +6,7 @@ import pytest
 from boltons import urlutils
 from marshmallow import Schema
 from sqlalchemy_utils import PhoneNumber, PhoneNumberParseException
+
 from teal import marshmallow
 from teal.marshmallow import Phone
 
@@ -93,8 +94,12 @@ def test_marshmallow_phone():
 
     foo = Foo()
     foo.load({'foo': '+34936666666'})
-    with pytest.raises(PhoneNumberParseException):
+    with pytest.raises(PhoneNumberParseException):  # Phone number cannot be parsed
         foo.load({'foo': 'this is not a phone number'})
+
+    with pytest.raises(ValueError, match='The phone number is invalid.'):
+        # Phone number is invalid for the country rules
+        foo.load({'foo': '+3401'})
 
     serialized = foo.dump({'foo': PhoneNumber('+34936666666')})
     assert serialized == {'foo': '+34 936 66 66 66'}

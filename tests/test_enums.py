@@ -15,3 +15,8 @@ def test_enum_country():
 
 def test_enum_subdivision():
     assert enums.Subdivision['ES-CA'].value == 963
+
+
+def test_enum_subdivision_in_country():
+    assert enums.Subdivision['ES-CA'] in enums.Country.ES
+    assert enums.Subdivision['ES-CA'] not in enums.Country.PH

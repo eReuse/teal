@@ -11,7 +11,8 @@ from marshmallow.fields import Field, Nested as MarshmallowNested, \
 from marshmallow.validate import Validator
 from marshmallow_enum import EnumField as _EnumField
 from sqlalchemy_utils import PhoneNumber
-from teal.db import Model, SQLAlchemy
+
+from teal import db as tealdb
 from teal.resource import Schema
 from teal.utils import if_none_return_none
 
@@ -82,19 +83,39 @@ class Phone(Field):
 
     @if_none_return_none
     def _deserialize(self, value: str, attr, data):
-        return PhoneNumber(value)
+        phone = PhoneNumber(value)
+        if not phone.is_valid_number():
+            raise ValueError('The phone number is invalid.')
+        return phone
 
 
 class NestedOn(MarshmallowNested):
-    """
-    A relationship with a resource schema that emulates the
+    """A relationship with a resource schema that emulates the
     relationships in SQLAlchemy.
 
-    When deserializing values this instantiates a SQLAlchemy Model
-    that fits the value in ``polymorphic_on``, usually named ``type``.
+    It allows instantiating SQLA models when deserializing NestedOn
+    values in two fashions:
+
+    - If the :attr:`.only_query` is set, NestedOn expects a scalar
+      (str, int...) value when deserializing, and tries to get
+      an existing model that has such value. Typical case is setting
+      :attr:`.only_query` to ``id``, and then pass-in the id
+      of a nested model. In such case NestedOn will change the id
+      for the model representing the ID.
+    - If :attr:`.only_query` is not set, NestedOn expects the
+      value to deserialize to be a dictionary, and instantiates
+      the model with the values of the dictionary. In this case
+      NestedOn requires :attr:`.polymorphic_on` to be set as a field,
+      usually called ``type``, that references a subclass of Model;
+      ex. {'type': 'SpecificDevice', ...}.
 
     When serializing from :meth:`teal.resource.Schema.jsonify` it
     serializes nested relationships up to a defined limit.
+
+    :param polymorphic_on: The field name that discriminates
+                               the type of object. For example ``type``.
+                               Then ``type`` contains the class name
+                               of a subschema of ``nested``.
     """
     NESTED_LEVEL = '_level'
     NESTED_LEVEL_MAX = '_level_max'
@@ -102,21 +123,16 @@ class NestedOn(MarshmallowNested):
     def __init__(self,
                  nested,
                  polymorphic_on: str,
-                 db: SQLAlchemy,
+                 db: tealdb.SQLAlchemy,
                  collection_class=list,
                  default=missing_,
                  exclude=tuple(),
+                 only_query: str = None,
                  only=None,
                  **kwargs):
-        """
-
-        :param polymorphic_on: The field name that discriminates
-                               the type of object. For example ``type``.
-                               Then ``type`` contains the class name
-                               of a subschema of ``nested``.
-        """
         self.polymorphic_on = polymorphic_on
         self.collection_class = collection_class
+        self.only_query = only_query
         assert isinstance(polymorphic_on, str)
         assert isinstance(only, str) or only is None
         super().__init__(nested, default, exclude, only, **kwargs)
@@ -140,24 +156,31 @@ class NestedOn(MarshmallowNested):
             return self._deserialize_one(value, parent_schema, attr)
 
     def _deserialize_one(self, value, parent_schema: Type[Schema], attr):
-        if self.polymorphic_on not in value:
+        if isinstance(value, dict) and self.polymorphic_on in value:
+            type = value[self.polymorphic_on]
+            resource = app.resources[type]
+            if not issubclass(resource.SCHEMA, parent_schema):
+                raise ValidationError('{} is not a sub-type of {}'.format(type, parent_schema.t),
+                                      field_names=[attr])
+            schema = resource.SCHEMA(only=self.only,
+                                     exclude=self.exclude,
+                                     context=getattr(self.parent, 'context', {}),
+                                     load_only=self._nested_normalized_option('load_only'),
+                                     dump_only=self._nested_normalized_option('dump_only'))
+            schema.ordered = getattr(self.parent, 'ordered', False)
+            value = schema.load(value)
+            model = self._model(type)(**value)
+        elif self.only_query:  # todo test only_query
+            model = self._model(parent_schema.t).query.filter_by(**{self.only_query: value}).one()
+        else:
             raise ValidationError('\'Type\' field required to disambiguate resources.',
                                   field_names=[attr])
-        type = value[self.polymorphic_on]
-        resource = app.resources[type]
-        if not issubclass(resource.SCHEMA, parent_schema):
-            raise ValidationError('{} is not a sub-type of {}'.format(type, parent_schema.t),
-                                  field_names=[attr])
-        schema = resource.SCHEMA(only=self.only,
-                                 exclude=self.exclude,
-                                 context=getattr(self.parent, 'context', {}),
-                                 load_only=self._nested_normalized_option('load_only'),
-                                 dump_only=self._nested_normalized_option('dump_only'))
-        schema.ordered = getattr(self.parent, 'ordered', False)
-        value = schema.load(value)
-        model = self.db.Model._decl_class_registry.data[type]()  # type: Model
-        assert issubclass(model, Model)
-        return model(**value)
+        assert isinstance(model, tealdb.Model)
+        return model
+
+    def _model(self, type: str) -> Type[tealdb.Model]:
+        """Given the type of a model it returns the model class."""
+        return self.db.Model._decl_class_registry.data[type]()
 
     def serialize(self, attr: str, obj, accessor=None) -> dict:
         """See class docs."""

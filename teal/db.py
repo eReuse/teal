@@ -1,3 +1,4 @@
+import ipaddress
 import re
 from distutils.version import StrictVersion
 from typing import Type
@@ -7,11 +8,12 @@ from boltons.urlutils import URL as BoltonsUrl
 from flask_sqlalchemy import BaseQuery, Model as _Model, SQLAlchemy as FlaskSQLAlchemy, \
     SignallingSession
 from sqlalchemy import CheckConstraint, cast, event, types
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, INET
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
-from teal.utils import if_none_return_none
 from werkzeug.exceptions import NotFound, UnprocessableEntity
+
+from teal.utils import if_none_return_none
 
 
 class ResourceNotFound(NotFound):
@@ -135,7 +137,7 @@ class SQLAlchemy(FlaskSQLAlchemy):
 
 
 class StrictVersionType(types.TypeDecorator):
-    """Supports storing StrictVersion objects on the Database.
+    """StrictVersion support for SQLAlchemy as Unicode.
 
     Idea `from official documentation <http://docs.sqlalchemy.org/en/
     latest/core/custom_types.html#augmenting-existing-types>`_.
@@ -152,17 +154,29 @@ class StrictVersionType(types.TypeDecorator):
 
 
 class URL(types.TypeDecorator):
-    # todo improve
+    """bolton's URL support for SQLAlchemy as Unicode."""
     impl = types.Unicode
 
     @if_none_return_none
     def process_bind_param(self, value, dialect):
-        str(value)
+        return str(value)
 
     @if_none_return_none
     def process_result_value(self, value, dialect):
-        # todo shall we return the object?
-        BoltonsUrl(value)
+        return BoltonsUrl(value)
+
+
+class IP(types.TypeDecorator):
+    """ipaddress support for SQLAlchemy as PSQL INET."""
+    impl = INET
+
+    @if_none_return_none
+    def process_bind_param(self, value, dialect):
+        return str(value)
+
+    @if_none_return_none
+    def process_result_value(self, value, dialect):
+        return ipaddress.ip_address(value)
 
 
 def check_range(column: str, min=1, max=None) -> CheckConstraint:
