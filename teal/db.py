@@ -1,7 +1,8 @@
 import ipaddress
 import re
+import uuid
 from distutils.version import StrictVersion
-from typing import Type
+from typing import Type, Union
 
 from boltons.typeutils import classproperty
 from boltons.urlutils import URL as BoltonsUrl
@@ -11,6 +12,7 @@ from sqlalchemy import CheckConstraint, cast, event, types
 from sqlalchemy.dialects.postgresql import ARRAY, INET
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+from sqlalchemy_utils import Ltree
 from werkzeug.exceptions import NotFound, UnprocessableEntity
 
 from teal.utils import if_none_return_none
@@ -177,6 +179,22 @@ class IP(types.TypeDecorator):
     @if_none_return_none
     def process_result_value(self, value, dialect):
         return ipaddress.ip_address(value)
+
+
+class UUIDLtree(Ltree):
+    """This Ltree only wants UUIDs as paths elements."""
+
+    def __init__(self, path_or_ltree: Union[Ltree, uuid.UUID]):
+        """
+        Creates a new Ltree. If the passed-in value is an UUID,
+        it automatically generates a suitable string for Ltree.
+        """
+        if not isinstance(path_or_ltree, Ltree):
+            if isinstance(path_or_ltree, uuid.UUID):
+                path_or_ltree = str(path_or_ltree).replace('-', '_')
+            else:
+                raise ValueError('Ltree does not accept {}'.format(path_or_ltree.__class__))
+        super().__init__(path_or_ltree)
 
 
 def check_range(column: str, min=1, max=None) -> CheckConstraint:
