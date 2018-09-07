@@ -6,7 +6,7 @@ from boltons import urlutils
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.exceptions import NotFound
 
-from teal.db import IP, StrictVersionType, URL
+from teal.db import DBError, IP, StrictVersionType, URL, UniqueViolation
 from teal.teal import Teal
 from tests import conftest
 
@@ -74,3 +74,28 @@ def test_db_ip():
     assert x == '192.168.1.1'
     y = ip.process_result_value('192.168.1.1', None)
     assert str(y) == '192.168.1.1'
+
+
+def test_db_error():
+    normal = DBError(Exception())
+    assert normal.__class__ == DBError
+    unique = DBError(Exception('UNIQUE constraint'))
+    assert unique.__class__ == UniqueViolation
+
+
+@pytest.mark.usefixtures(conftest.app_context.__name__)
+def test_db_error_unique_violation(db: SQLAlchemy):
+    """UniqueViolation"""
+
+    class Foo(db.Model):
+        id = db.Column(db.Integer, primary_key=True)
+        unique = db.Column(db.Integer, unique=True)
+
+    db.create_all()
+    foo = Foo(id=1, unique=1)
+    db.session.add(foo)
+    db.session.commit()
+    foo_again = Foo(id=2, unique=1)
+    db.session.add(foo_again)
+    with pytest.raises(UniqueViolation):
+        db.session.commit()

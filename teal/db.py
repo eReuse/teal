@@ -2,7 +2,7 @@ import ipaddress
 import re
 import uuid
 from distutils.version import StrictVersion
-from typing import Type, Union
+from typing import Any, Type, Union
 
 from boltons.typeutils import classproperty
 from boltons.urlutils import URL as BoltonsUrl
@@ -10,10 +10,11 @@ from flask_sqlalchemy import BaseQuery, Model as _Model, SQLAlchemy as FlaskSQLA
     SignallingSession
 from sqlalchemy import CheckConstraint, cast, event, types
 from sqlalchemy.dialects.postgresql import ARRAY, INET
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy_utils import Ltree
-from werkzeug.exceptions import NotFound, UnprocessableEntity
+from werkzeug.exceptions import BadRequest, NotFound, UnprocessableEntity
 
 from teal.utils import if_none_return_none
 
@@ -58,9 +59,17 @@ class Model(_Model):
         return cls.__name__
 
 
-class SchemaSession(SignallingSession):
-    """
-    Session that is configured to use a PostgreSQL's Schema.
+class Session(SignallingSession):
+    """A SQLAlchemy session that raises better exceptions."""
+    def _flush(self, objects=None):
+        try:
+            super()._flush(objects)
+        except IntegrityError as e:
+            raise DBError(e)  # This creates a suitable subclass
+
+
+class SchemaSession(Session):
+    """ Session that is configured to use a PostgreSQL's Schema.
 
     Idea from `here <https://stackoverflow.com/a/9299021>`_.
     """
@@ -73,9 +82,13 @@ class SchemaSession(SignallingSession):
 
 
 class SQLAlchemy(FlaskSQLAlchemy):
-    """
-    Controls SQLAlchemy integration with Teal.
+    def create_session(self, options):
+        """As parent's create_session but adding our SchemaSession."""
+        return sessionmaker(class_=Session, db=self, **options)
 
+
+class SchemaSQLAlchemy(SQLAlchemy):
+    """
     Enhances :class:`flask_sqlalchemy.SQLAlchemy` by using PostgreSQL's
     schemas when creating/dropping tables.
 
@@ -230,3 +243,28 @@ class ArrayOfEnum(ARRAY):
             return super_rp(handle_raw_string(value))
 
         return process
+
+
+class DBError(BadRequest):
+    """An Error from the database.
+
+    This helper error is used to map SQLAlchemy's IntegrityError
+    to more precise errors (like UniqueViolation) that are understood
+    as a client-ready HTTP Error.
+
+    When instantiating the class it auto-selects the best error.
+    """
+
+    def __init__(self, origin: IntegrityError):
+        super().__init__(str(origin))
+        self.origin = origin
+
+    def __new__(cls, origin: IntegrityError) -> Any:
+        msg = str(origin)
+        if 'unique constraint' in msg.lower():
+            return super().__new__(UniqueViolation)
+        return super().__new__(cls)
+
+
+class UniqueViolation(DBError):
+    pass

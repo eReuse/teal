@@ -6,7 +6,7 @@ from flask import Response, json
 
 from teal.client import Client
 from teal.config import Config
-from teal.db import SQLAlchemy
+from teal.db import SchemaSQLAlchemy
 from teal.teal import Teal, prefixed_database_factory
 
 
@@ -29,7 +29,7 @@ def test_json_encoder(app: Teal):
         json.dumps({'foo': StrictVersion('1.3')})
 
 
-def test_cors(fconfig: Config, db: SQLAlchemy):
+def test_cors(fconfig: Config, db: SchemaSQLAlchemy):
     DeviceDef, *_ = fconfig.RESOURCE_DEFINITIONS  # type: Tuple[ResourceDef]
 
     def foo(*args, **kw):

@@ -2,13 +2,12 @@ from contextlib import contextmanager
 
 import pytest
 from flask.testing import FlaskCliRunner
-from flask_sqlalchemy import SQLAlchemy
 from marshmallow.fields import Integer, Str
 from marshmallow.validate import Range
 
 from teal.client import Client
 from teal.config import Config
-from teal.db import INHERIT_COND, Model, POLYMORPHIC_ID, POLYMORPHIC_ON
+from teal.db import INHERIT_COND, Model, POLYMORPHIC_ID, POLYMORPHIC_ON, SQLAlchemy
 from teal.marshmallow import NestedOn
 from teal.resource import Converters, Resource, Schema, View
 from teal.teal import Teal
