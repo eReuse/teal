@@ -61,6 +61,7 @@ class Model(_Model):
 
 class Session(SignallingSession):
     """A SQLAlchemy session that raises better exceptions."""
+
     def _flush(self, objects=None):
         try:
             super()._flush(objects)
@@ -204,10 +205,15 @@ class UUIDLtree(Ltree):
         """
         if not isinstance(path_or_ltree, Ltree):
             if isinstance(path_or_ltree, uuid.UUID):
-                path_or_ltree = str(path_or_ltree).replace('-', '_')
+                path_or_ltree = self.convert(path_or_ltree)
             else:
                 raise ValueError('Ltree does not accept {}'.format(path_or_ltree.__class__))
         super().__init__(path_or_ltree)
+
+    @staticmethod
+    def convert(id: uuid.UUID) -> str:
+        """Transforms an uuid to a ready-to-ltree str representation."""
+        return str(id).replace('-', '_')
 
 
 def check_range(column: str, min=1, max=None) -> CheckConstraint:

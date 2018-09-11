@@ -9,8 +9,9 @@ from flask.json import jsonify
 from flask.views import MethodView
 from marshmallow import Schema as MarshmallowSchema, SchemaOpts as MarshmallowSchemaOpts, \
     ValidationError, post_dump, pre_load, validates_schema
-from teal import db, query
 from werkzeug.exceptions import MethodNotAllowed
+
+from teal import db, query
 
 
 class SchemaOpts(MarshmallowSchemaOpts):
@@ -140,7 +141,7 @@ class Schema(MarshmallowSchema):
             return super().dump(obj, False, update_fields)
 
     def jsonify(self,
-                model: 'db.Model',
+                model: Union['db.Model', Iterable['db.Model']],
                 nested=1,
                 many=False,
                 update_fields: bool = True,
