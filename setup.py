@@ -5,7 +5,7 @@ with open('README.md') as f:
 
 setup(
     name='teal',
-    version='0.2.0a14',
+    version='0.2.0a15',
     packages=find_packages(),
     url='https://github.com/ereuse/teal',
     license='BSD',
@@ -18,11 +18,11 @@ setup(
         'anytree',
         'apispec',
         'boltons',
-        'ereuse-utils[naming, test]>=0.4.0b3',
+        'ereuse-utils[naming, test]>=0.4.0b4',
         'flask>=1.0',
         'flask-sqlalchemy',
         'sqlalchemy-utils[password, color, phone]',  # todo make it optional
-        'marshmallow==3.0.0b9',
+        'marshmallow==3.0.0b11',
         'webargs',
         'flask-cors',
         'click-spinner'
