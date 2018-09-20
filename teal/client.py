@@ -1,11 +1,13 @@
 from typing import Any, Iterable, Tuple, Type, Union
 
 from boltons.urlutils import URL
-from ereuse_utils.test import Client as EreuseUtilsClient, JSON
-from flask import Response
+from ereuse_utils.test import Client as EreuseUtilsClient, JSON, Res
 from werkzeug.exceptions import HTTPException
 
 from teal.marshmallow import ValidationError
+
+Status = Union[int, Type[HTTPException], Type[ValidationError]]
+Query = Iterable[Tuple[str, Any]]
 
 
 class Client(EreuseUtilsClient):
@@ -14,13 +16,13 @@ class Client(EreuseUtilsClient):
     def open(self,
              uri: str,
              res: str = None,
-             status: Union[int, Type[HTTPException], Type[ValidationError]] = 200,
-             query: Iterable[Tuple[str, Any]] = tuple(),
+             status: Status = 200,
+             query: Query = tuple(),
              accept=JSON,
              content_type=JSON,
              item=None,
              headers: dict = None,
-             token: str = None, **kw) -> Tuple[Union[dict, str], Response]:
+             token: str = None, **kw) -> Res:
         headers = headers or {}
         if res:
             resource_url = self.application.resources[res].url_prefix + '/'
@@ -40,13 +42,13 @@ class Client(EreuseUtilsClient):
     def get(self,
             uri: str = '',
             res: str = None,
-            query: Iterable[Tuple[str, Any]] = tuple(),
-            status: Union[int, Type[HTTPException], Type[ValidationError]] = 200,
+            query: Query = tuple(),
+            status: Status = 200,
             item=None,
             accept: str = JSON,
             headers: dict = None,
             token: str = None,
-            **kw) -> Tuple[Union[dict, str], Response]:
+            **kw) -> Res:
         """
         Performs GET.
 
@@ -76,13 +78,13 @@ class Client(EreuseUtilsClient):
              data: str or dict,
              uri: str = '',
              res: str = None,
-             query: Iterable[Tuple[str, Any]] = tuple(),
-             status: Union[int, Type[HTTPException], Type[ValidationError]] = 201,
+             query: Query = tuple(),
+             status: Status = 201,
              content_type: str = JSON,
              accept: str = JSON,
              headers: dict = None,
              token: str = None,
-             **kw) -> Tuple[Union[dict, str], Response]:
+             **kw) -> Res:
         kw['res'] = res
         kw['token'] = token
         return super().post(uri, data, query, status, content_type, accept, headers, **kw)
@@ -91,28 +93,58 @@ class Client(EreuseUtilsClient):
               data: str or dict,
               uri: str = '',
               res: str = None,
-              query: Iterable[Tuple[str, Any]] = tuple(),
+              query: Query = tuple(),
               item=None,
-              status: Union[int, Type[HTTPException], Type[ValidationError]] = 200,
+              status: Status = 200,
               content_type: str = JSON,
               accept: str = JSON,
               token: str = None,
               headers: dict = None,
-              **kw) -> Tuple[Union[dict, str], Response]:
+              **kw) -> Res:
         kw['res'] = res
         kw['token'] = token
         return super().patch(uri, data, query, status, content_type, item, accept, headers, **kw)
 
+    def put(self,
+            data: str or dict,
+            uri: str = '',
+            res: str = None,
+            query: Query = tuple(),
+            item=None,
+            status: Status = 201,
+            content_type: str = JSON,
+            accept: str = JSON,
+            token: str = None,
+            headers: dict = None,
+            **kw) -> Res:
+        kw['res'] = res
+        kw['token'] = token
+        return super().put(uri, data, query, status, content_type, item, accept, headers, **kw)
+
+    def delete(self,
+               uri: str = '',
+               res: str = None,
+               query: Query = tuple(),
+               status: Status = 204,
+               item=None,
+               accept: str = JSON,
+               headers: dict = None,
+               token: str = None,
+               **kw) -> Res:
+        kw['res'] = res
+        kw['token'] = token
+        return super().delete(uri, query, item, status, accept, headers, **kw)
+
     def post_get(self,
                  res: str,
                  data: str or dict,
-                 query: Iterable[Tuple[str, Any]] = tuple(),
-                 status: Union[int, Type[HTTPException], Type[ValidationError]] = 200,
+                 query: Query = tuple(),
+                 status: Status = 200,
                  content_type: str = JSON,
                  accept: str = JSON,
                  headers: dict = None,
                  key='id',
-                 token: str = None, **kw) -> Tuple[Union[dict, str], Response]:
+                 token: str = None, **kw) -> Res:
         """Performs post and then gets the resource through its key."""
         r, _ = self.post('', data, res, query, status, content_type, accept, token, headers, **kw)
         return self.get(res=res, item=r[key])
