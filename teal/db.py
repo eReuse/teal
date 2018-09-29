@@ -174,8 +174,8 @@ class URL(types.TypeDecorator):
     impl = types.Unicode
 
     @if_none_return_none
-    def process_bind_param(self, value, dialect):
-        return str(value)
+    def process_bind_param(self, value: BoltonsUrl, dialect):
+        return value.to_text()
 
     @if_none_return_none
     def process_result_value(self, value, dialect):

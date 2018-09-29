@@ -62,7 +62,7 @@ def test_db_url(db: SQLAlchemy):
 
     db.create_all()
     foo = Foo(id=1, bar=urlutils.URL('http://foo.com/bar'))
-    assert isinstance(foo.bar, urlutils.URL)
+    assert foo.bar == urlutils.URL('http://foo.com/bar')
     db.session.add(foo)
     db.session.commit()
 
