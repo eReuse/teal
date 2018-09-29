@@ -141,10 +141,14 @@ class Teal(Flask):
         with click_spinner.spinner():
             if erase:
                 self.db.drop_all()
-            self.db.create_all()
-            for resource in self.resources.values():
-                resource.init_db(self.db)
+            self._init_db()
             self.db.session.commit()
+
+    def _init_db(self):
+        """Where the database is initialized. You can override this."""
+        self.db.create_all()
+        for resource in self.resources.values():
+            resource.init_db(self.db)
 
     def apidocs(self):
         """Apidocs configuration and generation."""
