@@ -278,7 +278,7 @@ class Resource(Blueprint):
     """
 
     def __init__(self, app,
-                 import_name=__package__,
+                 import_name=__name__.split('.')[0],
                  static_folder=None,
                  static_url_path=None,
                  template_folder=None,

@@ -5,7 +5,7 @@ with open('README.md') as f:
 
 setup(
     name='teal',
-    version='0.2.0a17',
+    version='0.2.0a18',
     packages=find_packages(),
     url='https://github.com/ereuse/teal',
     license='BSD',
