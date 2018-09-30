@@ -19,7 +19,7 @@ from teal.client import Client
 from teal.config import Config as ConfigClass
 from teal.json_util import TealJSONEncoder
 from teal.request import Request
-from teal.resource import Resource
+from teal.resource import Converters, LowerStrConverter, Resource
 
 
 class Teal(Flask):
@@ -53,6 +53,7 @@ class Teal(Flask):
         flask_cors.CORS(self)
         # Load databases
         self.auth = Auth()
+        self.url_map.converters[Converters.lower.name] = LowerStrConverter
         self.load_resources()
         self.register_error_handler(HTTPException, self._handle_standard_error)
         self.register_error_handler(ValidationError, self._handle_validation_error)

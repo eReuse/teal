@@ -44,9 +44,9 @@ class Query(BaseQuery):
         try:
             return super().one()
         except NoResultFound:
-            raise ResourceNotFound(self._entities)
+            raise ResourceNotFound(self._entities[0]._label_name)
         except MultipleResultsFound:
-            raise MultipleResourcesFound(self._entities)
+            raise MultipleResourcesFound(self._entities[0]._label_name)
 
 
 class Model(_Model):
@@ -220,6 +220,12 @@ def check_range(column: str, min=1, max=None) -> CheckConstraint:
     """Database constraint for ranged values."""
     constraint = '>= {}'.format(min) if max is None else 'BETWEEN {} AND {}'.format(min, max)
     return CheckConstraint('{} {}'.format(column, constraint))
+
+
+def check_lower(field_name: str):
+    """Constraint that checks if the string is lower case."""
+    return CheckConstraint('{0} = lower({0})'.format(field_name),
+                           name='{} must be lower'.format(field_name))
 
 
 class ArrayOfEnum(ARRAY):

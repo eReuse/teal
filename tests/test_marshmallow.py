@@ -4,11 +4,11 @@ from distutils import version
 import colour
 import pytest
 from boltons import urlutils
-from marshmallow import Schema
+from marshmallow import Schema, ValidationError as MaValidationError
 from sqlalchemy_utils import PhoneNumber, PhoneNumberParseException
 
 from teal import marshmallow
-from teal.marshmallow import Phone
+from teal.marshmallow import Phone, SanitizedStr
 
 
 def test_marshmallow_color():
@@ -106,3 +106,18 @@ def test_marshmallow_phone():
 
     serialized = foo.dump({'foo': None})
     assert serialized == {'foo': None}
+
+
+def test_marshmallow_sanitized_str():
+    class Foo(Schema):
+        foo = SanitizedStr(lower=True)
+
+    foo = Foo()
+    x = foo.load({'foo': 'bar'})
+    assert x['foo'] == 'bar'
+    x = foo.load({'foo': 'BAr  '})
+    assert x['foo'] == 'bar'
+    with pytest.raises(MaValidationError):
+        foo.load({'foo': '<a>asdf'})
+    with pytest.raises(MaValidationError):
+        foo.load({'foo': '[0m[1;36mart[46;34mÜ'})

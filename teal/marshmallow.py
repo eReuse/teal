@@ -3,10 +3,10 @@ from distutils.version import StrictVersion
 from typing import Type, Union
 
 import colour
-from boltons import urlutils
+from boltons import strutils, urlutils
 from flask import current_app as app, g
 from marshmallow import utils
-from marshmallow.fields import Field, Nested as MarshmallowNested, \
+from marshmallow.fields import Field, Nested as MarshmallowNested, String, \
     ValidationError as _ValidationError, missing_
 from marshmallow.validate import Validator
 from marshmallow_enum import EnumField as _EnumField
@@ -87,6 +87,33 @@ class Phone(Field):
         if not phone.is_valid_number():
             raise ValueError('The phone number is invalid.')
         return phone
+
+
+class SanitizedStr(String):
+    """String field that only has regular user strings.
+
+    A String that removes whitespaces,
+    optionally makes it lower, and invalidates HTML or ANSI codes.
+    """
+
+    def __init__(self, lower=False, default=missing_, attribute=None, data_key=None, error=None,
+                 validate=None,
+                 required=False, allow_none=None, load_only=False, dump_only=False,
+                 missing=missing_, error_messages=None, **metadata):
+        super().__init__(default, attribute, data_key, error, validate, required, allow_none,
+                         load_only, dump_only, missing, error_messages, **metadata)
+        self.lower = lower
+
+    def _deserialize(self, value, attr, data):
+        out = super()._deserialize(value, attr, data)
+        out = out.strip()
+        if self.lower:
+            out = out.lower()
+        if strutils.html2text(out) != out:
+            self.fail('invalid')
+        elif strutils.strip_ansi(out) != out:
+            self.fail('invalid')
+        return out
 
 
 class NestedOn(MarshmallowNested):

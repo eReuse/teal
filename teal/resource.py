@@ -10,6 +10,7 @@ from flask.views import MethodView
 from marshmallow import Schema as MarshmallowSchema, SchemaOpts as MarshmallowSchemaOpts, \
     ValidationError, post_dump, pre_load, validates_schema
 from werkzeug.exceptions import MethodNotAllowed
+from werkzeug.routing import UnicodeConverter
 
 from teal import db, query
 
@@ -237,6 +238,14 @@ class Converters(Enum):
     path = 'path'
     any = 'any'
     uuid = 'uuid'
+    lower = 'lower'
+
+
+class LowerStrConverter(UnicodeConverter):
+    """Like StringConverter but lowering the string."""
+
+    def to_python(self, value):
+        return super().to_python(value).lower()
 
 
 class Resource(Blueprint):
