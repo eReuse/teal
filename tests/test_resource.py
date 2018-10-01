@@ -121,6 +121,8 @@ def test_init_db(db: SQLAlchemy, config: Config):
         id = Column(db.Integer, primary_key=True)
 
     class FooDef(Resource):
+        __type__ = 'Foo'
+
         def init_db(self, db: SQLAlchemy):
             db.session.add(Foo())
 

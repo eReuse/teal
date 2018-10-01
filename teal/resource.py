@@ -317,7 +317,9 @@ class Resource(Blueprint):
 
     @classproperty
     def type(cls):
-        return cls.__type__ or cls.SCHEMA.t
+        t = cls.__type__ or cls.SCHEMA.t
+        assert t, 'Resource needs a type: either from SCHEMA or manually from __type__.'
+        return t
 
     @classproperty
     def t(cls):

@@ -6,6 +6,7 @@ from typing import Any, Type, Union
 
 from boltons.typeutils import classproperty
 from boltons.urlutils import URL as BoltonsUrl
+from ereuse_utils import if_none_return_none
 from flask_sqlalchemy import BaseQuery, Model as _Model, SQLAlchemy as FlaskSQLAlchemy, \
     SignallingSession
 from sqlalchemy import CheckConstraint, cast, event, types
@@ -15,8 +16,6 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy_utils import Ltree
 from werkzeug.exceptions import BadRequest, NotFound, UnprocessableEntity
-
-from teal.utils import if_none_return_none
 
 
 class ResourceNotFound(NotFound):

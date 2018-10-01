@@ -4,6 +4,7 @@ from typing import Type, Union
 
 import colour
 from boltons import strutils, urlutils
+from ereuse_utils import if_none_return_none
 from flask import current_app as app, g
 from marshmallow import utils
 from marshmallow.fields import Field, Nested as MarshmallowNested, String, \
@@ -14,7 +15,6 @@ from sqlalchemy_utils import PhoneNumber
 
 from teal import db as tealdb
 from teal.resource import Schema
-from teal.utils import if_none_return_none
 
 
 class Version(Field):

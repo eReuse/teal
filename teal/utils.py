@@ -1,8 +1,8 @@
 import inspect
-from functools import wraps
 from typing import Dict, Iterator, Tuple
 
 from sqlalchemy.dialects import postgresql
+
 from teal import resource
 
 
@@ -29,15 +29,3 @@ def import_resource(module) -> Iterator['resource.Resource']:
                 and issubclass(obj, resource.Resource) \
                 and obj != resource.Resource:
             yield obj
-
-
-def if_none_return_none(f):
-    """If the first value is None return None, otherwise execute f."""
-
-    @wraps(f)
-    def wrapper(self, value, *args, **kwargs):
-        if value is None:
-            return None
-        return f(self, value, *args, **kwargs)
-
-    return wrapper
