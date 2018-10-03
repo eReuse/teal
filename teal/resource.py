@@ -287,7 +287,7 @@ class Resource(Blueprint):
     """
 
     def __init__(self, app,
-                 import_name=__name__.split('.')[0],
+                 import_name=__name__,
                  static_folder=None,
                  static_url_path=None,
                  template_folder=None,
@@ -301,6 +301,9 @@ class Resource(Blueprint):
         url_prefix = url_prefix if url_prefix is not None else '/{}'.format(self.resource)
         super().__init__(self.type, import_name, static_folder, static_url_path, template_folder,
                          url_prefix, subdomain, url_defaults, root_path)
+        # todo __name__ in import_name forces subclasses to override the constructor
+        # otherwise import_name equals to teal.resource not project1.myresource
+        # and it is not very elegant...
         self.app = app
         self.schema = self.SCHEMA()
         # Views
