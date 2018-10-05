@@ -357,13 +357,14 @@ class Resource(Blueprint):
         return (node.name for node in PreOrderIter(self.app.tree[self.t]))
 
 
-def url_for_resource(
-        resource: Union[Resource, Schema, 'db.Model', str, Type[Resource],
-                        Type[Schema], Type['db.Model']],
-        item_id=None) -> str:
+TYPE = Union[Resource, Schema, 'db.Model', str, Type[Resource], Type[Schema], Type['db.Model']]
+
+
+def url_for_resource(resource: TYPE, item_id=None, method='GET') -> str:
     """
     As Flask's ``url_for``, this generates an URL but specifically for
     a View endpoint of the given resource.
+    :param method: The method whose view URL should be generated.
     :param resource:
     :param item_id: If given, append the ID of the resource in the URL,
                     ex. GET /devices/1
@@ -373,4 +374,4 @@ def url_for_resource(
     values = {}
     if item_id:
         values[current_app.resources[type].ID_NAME] = item_id
-    return url_for('{}.main'.format(type), **values)
+    return url_for('{}.main'.format(type), _method=method,  **values)

@@ -85,6 +85,9 @@ class Teal(Flask):
             resource_def = ResourceDef(self)  # type: Resource
             self.register_blueprint(resource_def)
             for cli_command, *args in resource_def.cli_commands:  # Register CLI commands
+                # todo cli commands with multiple arguments end-up reversed
+                # when teal has been executed multiple times (ex. testing)
+                # see _param_memo func in click package
                 self.cli.command(*args)(cli_command)
 
             # todo should we use resource_def.name instead of type?
