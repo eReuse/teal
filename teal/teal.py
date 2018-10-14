@@ -147,6 +147,7 @@ class Teal(Flask):
                 self.db.drop_all()
             self._init_db()
             self.db.session.commit()
+        print('done.')
 
     def _init_db(self):
         """Where the database is initialized. You can override this."""
