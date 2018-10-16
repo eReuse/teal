@@ -118,6 +118,12 @@ class Currency(Enum):
     YER = 112
     ZWD = 113
 
+    def __str__(self):
+        if self == Currency.EUR:
+            return '€'
+        else:
+            return self.name
+
 
 @unique
 class Continent(Enum):
@@ -399,6 +405,9 @@ class Country(Enum):
         if not isinstance(item, Subdivision):
             raise TypeError('Only subdivisions can be inside a country.')
         return item.country == self
+
+    def __str__(self):
+        return self.value
 
 
 class SubdivisionMixin:
