@@ -314,7 +314,7 @@ class Resource(Blueprint):
             self.add_url_rule('/', defaults={'id': None}, view_func=view, methods={'GET'})
             self.add_url_rule('/', view_func=view, methods={'POST'})
             self.add_url_rule('/<{}:{}>'.format(self.ID_CONVERTER.value, self.ID_NAME),
-                              view_func=view, methods={'GET', 'PUT', 'DELETE'})
+                              view_func=view, methods={'GET', 'PUT', 'DELETE', 'PATCH'})
         self.cli_commands = cli_commands
         self.before_request(self.load_resource)
 
