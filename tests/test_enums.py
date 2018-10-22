@@ -20,3 +20,8 @@ def test_enum_subdivision():
 def test_enum_subdivision_in_country():
     assert enums.Subdivision['ES-CA'] in enums.Country.ES
     assert enums.Subdivision['ES-CA'] not in enums.Country.PH
+
+
+def test_enum_layouts():
+    assert enums.Layouts.IN
+
