@@ -1,12 +1,14 @@
+import enum
 import ipaddress
 from distutils.version import StrictVersion
 
 import pytest
 from boltons import urlutils
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.exc import StatementError
 from werkzeug.exceptions import NotFound
 
-from teal.db import DBError, IP, StrictVersionType, URL, UniqueViolation
+from teal.db import DBError, IP, IntEnum, StrictVersionType, URL, UniqueViolation
 from teal.teal import Teal
 from tests import conftest
 
@@ -74,6 +76,29 @@ def test_db_ip():
     assert x == '192.168.1.1'
     y = ip.process_result_value('192.168.1.1', None)
     assert str(y) == '192.168.1.1'
+
+
+@pytest.mark.usefixtures(conftest.app_context.__name__)
+def test_db_int_enum(db: SQLAlchemy):
+    class FooEnum(enum.IntEnum):
+        foo = 1
+        bar = 2
+
+    class Foo(db.Model):
+        id = db.Column(db.Integer, primary_key=True)
+        bar = db.Column(IntEnum(FooEnum))
+
+    db.create_all()
+    foo = Foo(id=1, bar=FooEnum.foo)
+    assert FooEnum.foo == foo.bar
+    db.session.add(foo)
+    db.session.flush()
+
+    # Add something that is not the IntEnum
+    bar = Foo(id=2, bar=2)
+    db.session.add(bar)
+    with pytest.raises(StatementError):
+        db.session.flush()
 
 
 def test_db_error():

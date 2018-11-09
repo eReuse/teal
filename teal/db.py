@@ -1,3 +1,4 @@
+import enum
 import ipaddress
 import re
 import uuid
@@ -9,7 +10,7 @@ from boltons.urlutils import URL as BoltonsUrl
 from ereuse_utils import if_none_return_none
 from flask_sqlalchemy import BaseQuery, Model as _Model, SQLAlchemy as FlaskSQLAlchemy, \
     SignallingSession
-from sqlalchemy import CheckConstraint, cast, event, types
+from sqlalchemy import CheckConstraint, SmallInteger, cast, event, types
 from sqlalchemy.dialects.postgresql import ARRAY, INET
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
@@ -192,6 +193,24 @@ class IP(types.TypeDecorator):
     @if_none_return_none
     def process_result_value(self, value, dialect):
         return ipaddress.ip_address(value)
+
+
+class IntEnum(types.TypeDecorator):
+    """SmallInteger -- IntEnum"""
+    impl = SmallInteger
+
+    def __init__(self, enumeration: Type[enum.IntEnum], *args, **kwargs):
+        self.enum = enumeration
+        super().__init__(*args, **kwargs)
+
+    @if_none_return_none
+    def process_bind_param(self, value, dialect):
+        assert isinstance(value, self.enum), 'Value should be instance of {}'.format(self.enum)
+        return value.value
+
+    @if_none_return_none
+    def process_result_value(self, value, dialect):
+        return self.enum(value)
 
 
 class UUIDLtree(Ltree):
