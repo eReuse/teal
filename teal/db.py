@@ -34,8 +34,9 @@ class MultipleResourcesFound(UnprocessableEntity):
 POLYMORPHIC_ID = 'polymorphic_identity'
 POLYMORPHIC_ON = 'polymorphic_on'
 INHERIT_COND = 'inherit_condition'
-CASCADE = 'save-update, delete'
-CASCADE_OWN = '{}, delete-orphan'.format(CASCADE)
+DEFAULT_CASCADE = 'save-update, merge'
+CASCADE_DEL = '{}, delete'.format(DEFAULT_CASCADE)
+CASCADE_OWN = '{}, delete-orphan'.format(CASCADE_DEL)
 DB_CASCADE_SET_NULL = 'SET NULL'
 
 
