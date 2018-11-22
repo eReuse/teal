@@ -296,16 +296,19 @@ class Resource(Blueprint):
                  url_defaults=None,
                  root_path=None,
                  cli_commands: Iterable[Tuple[Callable, str or None]] = tuple()):
-        assert not self.VIEW or issubclass(self.VIEW, View), 'VIEW should be an subclass of View'
-        assert issubclass(self.SCHEMA, Schema), 'SCHEMA should be a subclass of Schema'
+        assert not self.VIEW or issubclass(self.VIEW, View), 'VIEW should be a subclass of View'
+        assert not self.SCHEMA or issubclass(self.SCHEMA, Schema), \
+            'SCHEMA should be a subclass of Schema or None.'
+        # todo test for cases where self.SCHEMA is None
         url_prefix = url_prefix if url_prefix is not None else '/{}'.format(self.resource)
         super().__init__(self.type, import_name, static_folder, static_url_path, template_folder,
                          url_prefix, subdomain, url_defaults, root_path)
         # todo __name__ in import_name forces subclasses to override the constructor
-        # otherwise import_name equals to teal.resource not project1.myresource
-        # and it is not very elegant...
+        #   otherwise import_name equals to teal.resource not project1.myresource
+        #   and it is not very elegant...
+
         self.app = app
-        self.schema = self.SCHEMA()
+        self.schema = self.SCHEMA() if self.SCHEMA else None
         # Views
         if self.VIEW:
             view = self.VIEW.as_view('main', definition=self, auth=app.auth)

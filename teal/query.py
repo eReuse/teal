@@ -198,6 +198,10 @@ class NestedQueryFlaskParser(FlaskParser):
     Parses JSON-encoded URL parameters like
     ``.../foo?param={"x": "y"}&param2=["x", "y"]``, and it still allows
     normal non-JSON-encoded params ``../foo?param=23&param2={"a": "b"}``.
+
+    You can keep a value always a string, regardless if it is a valid
+    JSON, by overriding the following method and setting per-case
+    actions by checking `name` property.
     """
 
     def parse_querystring(self, req, name, field):

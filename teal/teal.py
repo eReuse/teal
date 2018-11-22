@@ -165,9 +165,10 @@ class Teal(Flask):
             **self.config.get_namespace('API_DOC_CONFIG_')
         )
         for name, resource in self.resources.items():
-            self.spec.definition(name,
-                                 schema=resource.SCHEMA,
-                                 extra_fields=self.config.get_namespace('API_DOC_CLASS_'))
+            if resource.SCHEMA:
+                self.spec.definition(name,
+                                     schema=resource.SCHEMA,
+                                     extra_fields=self.config.get_namespace('API_DOC_CLASS_'))
         self.add_url_rule('/apidocs', view_func=self.apidocs_endpoint)
 
     def apidocs_endpoint(self):
