@@ -123,7 +123,7 @@ def test_init_db(db: SQLAlchemy, config: Config):
     class FooDef(Resource):
         __type__ = 'Foo'
 
-        def init_db(self, db: SQLAlchemy):
+        def init_db(self, db: SQLAlchemy, exclude_schema=None):
             db.session.add(Foo())
 
     config.RESOURCE_DEFINITIONS = FooDef,

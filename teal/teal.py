@@ -17,6 +17,7 @@ from werkzeug.wsgi import DispatcherMiddleware
 from teal.auth import Auth
 from teal.client import Client
 from teal.config import Config as ConfigClass
+from teal.db import SchemaSQLAlchemy
 from teal.json_util import TealJSONEncoder
 from teal.request import Request
 from teal.resource import Converters, LowerStrConverter, Resource
@@ -127,7 +128,14 @@ class Teal(Flask):
         return response
 
     @option('--erase/--no-erase', default=False, help='Delete all db contents before?')
-    def init_db(self, erase: bool = False):
+    @option('--exclude-schema',
+            default=None,
+            help='Schema to exclude creation. Required the SchemaSQLAlchemy.')
+    @option('--check/--no-check',
+            default=False,
+            help='Do not create db if schema already exists. '
+                 'Incompatible with erase. Required the SchemaSQLAlchemy.')
+    def init_db(self, erase: bool = False, exclude_schema=None, check=False):
         """
         Initializes a database from scratch,
         creating tables and needed resources.
@@ -145,15 +153,27 @@ class Teal(Flask):
         with click_spinner.spinner():
             if erase:
                 self.db.drop_all()
-            self._init_db()
+            self._init_db(exclude_schema, check)
             self.db.session.commit()
         print('done.')
 
-    def _init_db(self):
-        """Where the database is initialized. You can override this."""
-        self.db.create_all()
+    def _init_db(self, exclude_schema=None, check=False) -> bool:
+        """Where the database is initialized. You can override this.
+
+        :return: A flag stating if the database has been created (can
+        be False in case check is True and the schema already
+        exists).
+        """
+        if exclude_schema or check:  # Using then a schema teal sqlalchemy
+            assert isinstance(self.db, SchemaSQLAlchemy), \
+                'exclude_schema and check only work with SchemaSQLAlchemy'
+            if not self.db.create_all(exclude_schema=exclude_schema, check=check):
+                return False
+        else:  # using regular flask sqlalchemy
+            self.db.create_all()
         for resource in self.resources.values():
-            resource.init_db(self.db)
+            resource.init_db(self.db, exclude_schema)
+        return True
 
     def apidocs(self):
         """Apidocs configuration and generation."""
@@ -213,7 +233,7 @@ def prefixed_database_factory(Config: Type[ConfigClass],
     db = SQLAlchemy()
     default = App(config=Config(), db=db)
     apps = {
-        '/{}'.format(path_uri): App(config=Config(db=sql_uri), db=db)
+        '/{}'.format(path_uri): App(config=Config(), db=db)
         for path_uri, sql_uri in databases
     }
     return DispatcherMiddleware(default, apps)

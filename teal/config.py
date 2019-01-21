@@ -1,7 +1,6 @@
 from typing import Dict, Set, Type
 
 from boltons.typeutils import issubclass
-from boltons.urlutils import URL
 
 from teal.resource import Resource
 
@@ -88,12 +87,9 @@ class Config:
     exactly in **Parameters**, like the ones above.
     """
 
-    def __init__(self, db: str = None) -> None:
+    def __init__(self) -> None:
         """
         :param db: Optional. Set the ``SQLALCHEMY_DATABASE_URI`` param.
         """
         for r in self.RESOURCE_DEFINITIONS:
             assert issubclass(r, Resource), '{0!r} is not a subclass of Resource'.format(r)
-        if db:
-            assert URL(db), 'Set a valid URI'
-            self.SQLALCHEMY_DATABASE_URI = db

@@ -343,7 +343,7 @@ class Resource(Blueprint):
         g.schema = self.schema
         g.resource_def = self
 
-    def init_db(self, db: 'db.SQLAlchemy'):
+    def init_db(self, db: 'db.SQLAlchemy', exclude_schema=None):
         """
         Put here code to execute when initializing the database for this
         resource.

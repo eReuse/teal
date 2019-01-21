@@ -84,8 +84,18 @@ class SchemaSession(Session):
 
 
 class SQLAlchemy(FlaskSQLAlchemy):
+    """
+    Enhances :class:`flask_sqlalchemy.SQLAlchemy` by adding our
+    Session and Model.
+    """
+
+    def __init__(self, app=None, use_native_unicode=True, session_options=None, metadata=None,
+                 query_class=BaseQuery, model_class=Model):
+        super().__init__(app, use_native_unicode, session_options, metadata, query_class,
+                         model_class)
+
     def create_session(self, options):
-        """As parent's create_session but adding our SchemaSession."""
+        """As parent's create_session but adding our Session."""
         return sessionmaker(class_=Session, db=self, **options)
 
 
@@ -114,10 +124,33 @@ class SchemaSQLAlchemy(SQLAlchemy):
         # Set ``search_path`` to default (``public``)
         event.listen(self.metadata, 'after_drop', self.revert_connection)
 
+    def create_all(self, bind='__all__', app=None, exclude_schema=None, check=False):
+        """Create all tables.
+
+        :param exclude_schema: Do not create tables in this schema.
+        :param check: Do not create anything if the schema already exists. Return false.
+        """
+        app = self.get_app(app)
+        if check and self.has_schema(app.config['SCHEMA']):
+            return False
+        # todo how to pass exclude_schema without contaminating self?
+        self._exclude_schema = exclude_schema
+        super().create_all(bind, app)
+        return True
+
     def _execute_for_all_tables(self, app, bind, operation, skip_tables=False):
         # todo how to pass app to our event listeners without contaminating self?
         self._app = self.get_app(app)
         super()._execute_for_all_tables(app, bind, operation, skip_tables)
+
+    def get_tables_for_bind(self, bind=None):
+        """As super method, but only getting tales that are not
+        part of exclude_schema, if set.
+        """
+        tables = super().get_tables_for_bind(bind)
+        if getattr(self, '_exclude_schema', None):
+            tables = [t for t in tables if t.schema != self._exclude_schema]
+        return tables
 
     def create_schemas(self, target, connection, **kw):
         """
@@ -151,6 +184,13 @@ class SchemaSQLAlchemy(SQLAlchemy):
         schema = schema or app.config['SCHEMA']
         with self.engine.begin() as conn:
             conn.execute('DROP SCHEMA IF EXISTS {} CASCADE'.format(schema))
+
+    def has_schema(self, schema: str) -> bool:
+        """Does the db have the passed-in schema?"""
+        return self.engine.execute(
+            "SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname='{}')"
+                .format(schema)
+        ).scalar()
 
 
 class StrictVersionType(types.TypeDecorator):
