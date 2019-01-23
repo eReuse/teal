@@ -35,32 +35,6 @@ class Config:
     <https://stackoverflow.com/a/33790196>`_. 
     """
 
-    SCHEMA = None  # type: str
-    """
-    A string describing the main PostgreSQL's schema. ``None`` disables
-    this functionality.
-    
-    If you use a factory of apps (for example by using
-    :func:`teal.teal.prefixed_database_factory`) and then set this
-    value differently per each app (as each app has a separate config)
-    you effectively create a `multi-tenant app <https://
-    news.ycombinator.com/item?id=4268792>`_.
-    
-    Your models by default will be created in this ``SCHEMA``,
-    unless you set something like::
-    
-        class User(db.Model):
-            __table_args__ = {'schema': 'users'}
-            
-    In which case this will be created in the ``users`` schema.
-    
-    Schemas are interesting over having multiple databases (i.e. using
-    flask-sqlalchemy's data binding) because you can have relationships
-    between them.
-    
-    Note that this only works with PostgreSQL.
-    """
-
     API_DOC_CONFIG_TITLE = 'Teal'
     API_DOC_CONFIG_VERSION = '0.1'
     """

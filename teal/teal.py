@@ -1,5 +1,5 @@
 import inspect
-from typing import Dict, Iterable, Tuple, Type
+from typing import Dict, Type
 
 import click_spinner
 import flask_cors
@@ -11,9 +11,6 @@ from flask import Flask, Response, jsonify
 from flask.globals import _app_ctx_stack
 from flask_sqlalchemy import SQLAlchemy
 from marshmallow import ValidationError
-from werkzeug.exceptions import HTTPException, UnprocessableEntity
-from werkzeug.wsgi import DispatcherMiddleware
-
 from teal.auth import Auth
 from teal.client import Client
 from teal.config import Config as ConfigClass
@@ -21,6 +18,7 @@ from teal.db import SchemaSQLAlchemy
 from teal.json_util import TealJSONEncoder
 from teal.request import Request
 from teal.resource import Converters, LowerStrConverter, Resource
+from werkzeug.exceptions import HTTPException, UnprocessableEntity
 
 
 class Teal(Flask):
@@ -35,6 +33,7 @@ class Teal(Flask):
     def __init__(self,
                  config: ConfigClass,
                  db: SQLAlchemy,
+                 schema: str = None,
                  import_name=__name__.split('.')[0],
                  static_url_path=None,
                  static_folder='static',
@@ -46,6 +45,42 @@ class Teal(Flask):
                  instance_relative_config=False,
                  root_path=None,
                  Auth: Type[Auth] = Auth):
+        """
+
+        :param config:
+        :param db:
+        :param schema: A string describing the main PostgreSQL's schema.
+                      ``None`` disables this functionality.
+                      If you use a factory of apps (for example by using
+                      :func:`teal.teal.prefixed_database_factory`) and then set this
+                      value differently per each app (as each app has a separate config)
+                      you effectively create a `multi-tenant app <https://
+                      news.ycombinator.com/item?id=4268792>`_.
+                      Your models by default will be created in this ``SCHEMA``,
+                      unless you set something like::
+
+                          class User(db.Model):
+                              __table_args__ = {'schema': 'users'}
+
+                      In which case this will be created in the ``users`` schema.
+                      Schemas are interesting over having multiple databases (i.e. using
+                      flask-sqlalchemy's data binding) because you can have relationships
+                      between them.
+
+                      Note that this only works with PostgreSQL.
+        :param import_name:
+        :param static_url_path:
+        :param static_folder:
+        :param static_host:
+        :param host_matching:
+        :param subdomain_matching:
+        :param template_folder:
+        :param instance_path:
+        :param instance_relative_config:
+        :param root_path:
+        :param Auth:
+        """
+        self.schema = schema
         ensure_utf8(self.__class__.__name__)
         super().__init__(import_name, static_url_path, static_folder, static_host, host_matching,
                          subdomain_matching, template_folder, instance_path,
@@ -131,11 +166,7 @@ class Teal(Flask):
     @option('--exclude-schema',
             default=None,
             help='Schema to exclude creation. Required the SchemaSQLAlchemy.')
-    @option('--check/--no-check',
-            default=False,
-            help='Do not create db if schema already exists. '
-                 'Incompatible with erase. Required the SchemaSQLAlchemy.')
-    def init_db(self, erase: bool = False, exclude_schema=None, check=False):
+    def init_db(self, erase: bool = False, exclude_schema=None):
         """
         Initializes a database from scratch,
         creating tables and needed resources.
@@ -153,27 +184,28 @@ class Teal(Flask):
         with click_spinner.spinner():
             if erase:
                 self.db.drop_all()
-            self._init_db(exclude_schema, check)
+            self._init_db(exclude_schema)
+            self._init_resources()
             self.db.session.commit()
         print('done.')
 
-    def _init_db(self, exclude_schema=None, check=False) -> bool:
+    def _init_db(self, exclude_schema=None) -> bool:
         """Where the database is initialized. You can override this.
 
         :return: A flag stating if the database has been created (can
         be False in case check is True and the schema already
         exists).
         """
-        if exclude_schema or check:  # Using then a schema teal sqlalchemy
-            assert isinstance(self.db, SchemaSQLAlchemy), \
-                'exclude_schema and check only work with SchemaSQLAlchemy'
-            if not self.db.create_all(exclude_schema=exclude_schema, check=check):
-                return False
+        if exclude_schema:  # Using then a schema teal sqlalchemy
+            assert isinstance(self.db, SchemaSQLAlchemy)
+            self.db.create_all(exclude_schema=exclude_schema)
         else:  # using regular flask sqlalchemy
             self.db.create_all()
-        for resource in self.resources.values():
-            resource.init_db(self.db, exclude_schema)
         return True
+
+    def _init_resources(self, **kw):
+        for resource in self.resources.values():
+            resource.init_db(self.db, **kw)
 
     def apidocs(self):
         """Apidocs configuration and generation."""
@@ -200,40 +232,3 @@ class Teal(Flask):
                     self.spec.add_path(view=view_func)
             self._apidocs = self.spec.to_dict()
         return jsonify(self._apidocs)
-
-
-def prefixed_database_factory(Config: Type[ConfigClass],
-                              databases: Iterable[Tuple[str, str]],
-                              App: Type[Teal] = Teal) -> DispatcherMiddleware:
-    """
-    A factory of Teals. Allows creating as many Teal apps as databases
-    from the DefaultConfig.DATABASES, setting each Teal app to an URL in
-    the following way:
-    - / -> to the Teal app that uses the
-      :attr:`teal.config.Config.SQLALCHEMY_DATABASE_URI` set in config.
-    - /db1/... -> to the Teal app with db1 as default
-    - /db2/... -> to the Teal app with db2 as default
-    And so on.
-
-    DefaultConfig is used to configure the root Teal app.
-    Optionally, each other app can have a custom Config. Pass them in
-    the `configs` dictionary. Apps with no Config will default to the
-    DefaultConfig.
-
-    :param Config: The configuration class to use with each database
-    :param databases: Names of the databases, where the first value is a
-                      valid  URI to use in the dispatcher middleware and
-                      the second value the SQLAlchemy URI referring to a
-                      database to use.
-    :param App: A Teal class.
-    :return: A WSGI middleware where an app without database is default
-    and the rest prefixed with their database name.
-    """
-    # todo
-    db = SQLAlchemy()
-    default = App(config=Config(), db=db)
-    apps = {
-        '/{}'.format(path_uri): App(config=Config(), db=db)
-        for path_uri, sql_uri in databases
-    }
-    return DispatcherMiddleware(default, apps)

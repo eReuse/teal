@@ -78,119 +78,8 @@ class SchemaSession(Session):
 
     def __init__(self, db, autocommit=False, autoflush=True, **options):
         super().__init__(db, autocommit, autoflush, **options)
-        SCHEMA = self.app.config['SCHEMA']
-        if SCHEMA:
-            self.execute('SET search_path TO {}, public'.format(SCHEMA))
-
-
-class SQLAlchemy(FlaskSQLAlchemy):
-    """
-    Enhances :class:`flask_sqlalchemy.SQLAlchemy` by adding our
-    Session and Model.
-    """
-
-    def __init__(self, app=None, use_native_unicode=True, session_options=None, metadata=None,
-                 query_class=BaseQuery, model_class=Model):
-        super().__init__(app, use_native_unicode, session_options, metadata, query_class,
-                         model_class)
-
-    def create_session(self, options):
-        """As parent's create_session but adding our Session."""
-        return sessionmaker(class_=Session, db=self, **options)
-
-
-class SchemaSQLAlchemy(SQLAlchemy):
-    """
-    Enhances :class:`flask_sqlalchemy.SQLAlchemy` by using PostgreSQL's
-    schemas when creating/dropping tables.
-
-    See :attr:`teal.config.SCHEMA` for more info.
-    """
-
-    def __init__(self, app=None, use_native_unicode=True, session_options=None, metadata=None,
-                 query_class=Query, model_class=Model):
-        super().__init__(app, use_native_unicode, session_options, metadata, query_class,
-                         model_class)
-        # The following listeners set psql's search_path to the correct
-        # schema and create the schemas accordingly
-
-        # Specifically:
-        # 1. Creates the schemas and set ``search_path`` to app's config SCHEMA
-        event.listen(self.metadata, 'before_create', self.create_schemas)
-        # Set ``search_path`` to default (``public``)
-        event.listen(self.metadata, 'after_create', self.revert_connection)
-        # Set ``search_path`` to app's config SCHEMA
-        event.listen(self.metadata, 'before_drop', self.set_search_path)
-        # Set ``search_path`` to default (``public``)
-        event.listen(self.metadata, 'after_drop', self.revert_connection)
-
-    def create_all(self, bind='__all__', app=None, exclude_schema=None, check=False):
-        """Create all tables.
-
-        :param exclude_schema: Do not create tables in this schema.
-        :param check: Do not create anything if the schema already exists. Return false.
-        """
-        app = self.get_app(app)
-        if check and self.has_schema(app.config['SCHEMA']):
-            return False
-        # todo how to pass exclude_schema without contaminating self?
-        self._exclude_schema = exclude_schema
-        super().create_all(bind, app)
-        return True
-
-    def _execute_for_all_tables(self, app, bind, operation, skip_tables=False):
-        # todo how to pass app to our event listeners without contaminating self?
-        self._app = self.get_app(app)
-        super()._execute_for_all_tables(app, bind, operation, skip_tables)
-
-    def get_tables_for_bind(self, bind=None):
-        """As super method, but only getting tales that are not
-        part of exclude_schema, if set.
-        """
-        tables = super().get_tables_for_bind(bind)
-        if getattr(self, '_exclude_schema', None):
-            tables = [t for t in tables if t.schema != self._exclude_schema]
-        return tables
-
-    def create_schemas(self, target, connection, **kw):
-        """
-        Create the schemas and set the active schema.
-
-        From `here <https://bitbucket.org/zzzeek/sqlalchemy/issues/3914/
-        extend-create_all-drop_all-to-include#comment-40129850>`_.
-        """
-        schemas = set(table.schema for table in target.tables.values() if table.schema)
-        if self._app.config['SCHEMA']:
-            schemas.add(self._app.config['SCHEMA'])
-        for schema in schemas:
-            connection.execute('CREATE SCHEMA IF NOT EXISTS {}'.format(schema))
-        self.set_search_path(target, connection)
-
-    def set_search_path(self, _, connection, **kw):
-        app = self.get_app()
-        if app.config['SCHEMA']:
-            connection.execute('SET search_path TO {}, public'.format(app.config['SCHEMA']))
-
-    def revert_connection(self, _, connection, **kw):
-        connection.execute('SET search_path TO public')
-
-    def create_session(self, options):
-        """As parent's create_session but adding our SchemaSession."""
-        return sessionmaker(class_=SchemaSession, db=self, **options)
-
-    def drop_schema(self, app=None, schema=None):
-        """Nukes a schema and everything that depends on it."""
-        app = self.get_app(app)
-        schema = schema or app.config['SCHEMA']
-        with self.engine.begin() as conn:
-            conn.execute('DROP SCHEMA IF EXISTS {} CASCADE'.format(schema))
-
-    def has_schema(self, schema: str) -> bool:
-        """Does the db have the passed-in schema?"""
-        return self.engine.execute(
-            "SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname='{}')"
-                .format(schema)
-        ).scalar()
+        if self.app.schema:
+            self.execute('SET search_path TO {}, public'.format(self.app.schema))
 
 
 class StrictVersionType(types.TypeDecorator):
@@ -314,6 +203,118 @@ class ArrayOfEnum(ARRAY):
             return super_rp(handle_raw_string(value))
 
         return process
+
+
+class SQLAlchemy(FlaskSQLAlchemy):
+    """
+    Enhances :class:`flask_sqlalchemy.SQLAlchemy` by adding our
+    Session and Model.
+    """
+    StrictVersionType = StrictVersionType
+    URL = URL
+    IP = IP
+    IntEnum = IntEnum
+    UUIDLtree = UUIDLtree
+    ArrayOfEnum = ArrayOfEnum
+
+    def __init__(self, app=None, use_native_unicode=True, session_options=None, metadata=None,
+                 query_class=BaseQuery, model_class=Model):
+        super().__init__(app, use_native_unicode, session_options, metadata, query_class,
+                         model_class)
+
+    def create_session(self, options):
+        """As parent's create_session but adding our Session."""
+        return sessionmaker(class_=Session, db=self, **options)
+
+
+class SchemaSQLAlchemy(SQLAlchemy):
+    """
+    Enhances :class:`flask_sqlalchemy.SQLAlchemy` by using PostgreSQL's
+    schemas when creating/dropping tables.
+
+    See :attr:`teal.config.SCHEMA` for more info.
+    """
+
+    def __init__(self, app=None, use_native_unicode=True, session_options=None, metadata=None,
+                 query_class=Query, model_class=Model):
+        super().__init__(app, use_native_unicode, session_options, metadata, query_class,
+                         model_class)
+        # The following listeners set psql's search_path to the correct
+        # schema and create the schemas accordingly
+
+        # Specifically:
+        # 1. Creates the schemas and set ``search_path`` to app's config SCHEMA
+        event.listen(self.metadata, 'before_create', self.create_schemas)
+        # Set ``search_path`` to default (``public``)
+        event.listen(self.metadata, 'after_create', self.revert_connection)
+        # Set ``search_path`` to app's config SCHEMA
+        event.listen(self.metadata, 'before_drop', self.set_search_path)
+        # Set ``search_path`` to default (``public``)
+        event.listen(self.metadata, 'after_drop', self.revert_connection)
+
+    def create_all(self, bind='__all__', app=None, exclude_schema=None):
+        """Create all tables.
+
+        :param exclude_schema: Do not create tables in this schema.
+        """
+        app = self.get_app(app)
+        # todo how to pass exclude_schema without contaminating self?
+        self._exclude_schema = exclude_schema
+        super().create_all(bind, app)
+
+    def _execute_for_all_tables(self, app, bind, operation, skip_tables=False):
+        # todo how to pass app to our event listeners without contaminating self?
+        self._app = self.get_app(app)
+        super()._execute_for_all_tables(app, bind, operation, skip_tables)
+
+    def get_tables_for_bind(self, bind=None):
+        """As super method, but only getting tales that are not
+        part of exclude_schema, if set.
+        """
+        tables = super().get_tables_for_bind(bind)
+        if getattr(self, '_exclude_schema', None):
+            tables = [t for t in tables if t.schema != self._exclude_schema]
+        return tables
+
+    def create_schemas(self, target, connection, **kw):
+        """
+        Create the schemas and set the active schema.
+
+        From `here <https://bitbucket.org/zzzeek/sqlalchemy/issues/3914/
+        extend-create_all-drop_all-to-include#comment-40129850>`_.
+        """
+        schemas = set(table.schema for table in target.tables.values() if table.schema)
+        if self._app.schema:
+            schemas.add(self._app.schema)
+        for schema in schemas:
+            connection.execute('CREATE SCHEMA IF NOT EXISTS {}'.format(schema))
+        self.set_search_path(target, connection)
+
+    def set_search_path(self, _, connection, **kw):
+        app = self.get_app()
+        if app.schema:
+            connection.execute('SET search_path TO {}, public'.format(app.schema))
+
+    def revert_connection(self, _, connection, **kw):
+        connection.execute('SET search_path TO public')
+
+    def create_session(self, options):
+        """As parent's create_session but adding our SchemaSession."""
+        return sessionmaker(class_=SchemaSession, db=self, **options)
+
+    def drop_schema(self, app=None, schema=None):
+        """Nukes a schema and everything that depends on it."""
+        app = self.get_app(app)
+        schema = schema or app.schema
+        with self.engine.begin() as conn:
+            conn.execute('DROP SCHEMA IF EXISTS {} CASCADE'.format(schema))
+
+    def has_schema(self, schema: str) -> bool:
+        """Does the db have the passed-in schema?"""
+        return self.engine.execute(
+            "SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname='{}')"
+                .format(schema)
+        ).scalar()
 
 
 class DBError(BadRequest):
