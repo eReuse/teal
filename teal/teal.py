@@ -11,14 +11,16 @@ from flask import Flask, Response, jsonify
 from flask.globals import _app_ctx_stack
 from flask_sqlalchemy import SQLAlchemy
 from marshmallow import ValidationError
+from werkzeug.exceptions import HTTPException, UnprocessableEntity
+
 from teal.auth import Auth
+from teal.cli import TealCliRunner
 from teal.client import Client
 from teal.config import Config as ConfigClass
 from teal.db import SchemaSQLAlchemy
 from teal.json_util import TealJSONEncoder
 from teal.request import Request
 from teal.resource import Converters, LowerStrConverter, Resource
-from werkzeug.exceptions import HTTPException, UnprocessableEntity
 
 
 class Teal(Flask):
@@ -29,6 +31,8 @@ class Teal(Flask):
     test_client_class = Client
     request_class = Request
     json_encoder = TealJSONEncoder
+    cli_context_settings = {'help_option_names': ('-h', '--help')}
+    test_cli_runner_class = TealCliRunner
 
     def __init__(self,
                  config: ConfigClass,
@@ -44,6 +48,7 @@ class Teal(Flask):
                  instance_path=None,
                  instance_relative_config=False,
                  root_path=None,
+                 use_init_db=True,
                  Auth: Type[Auth] = Auth):
         """
 
@@ -95,7 +100,8 @@ class Teal(Flask):
         self.register_error_handler(ValidationError, self._handle_validation_error)
         self.db = db
         db.init_app(self)
-        self.cli.command('init-db')(self.init_db)
+        if use_init_db:
+            self.cli.command('init-db', context_settings=self.cli_context_settings)(self.init_db)
         self.spec = None  # type: APISpec
         self.apidocs()
 
@@ -120,11 +126,19 @@ class Teal(Flask):
         for ResourceDef in self.config['RESOURCE_DEFINITIONS']:
             resource_def = ResourceDef(self)  # type: Resource
             self.register_blueprint(resource_def)
+
+            if resource_def.cli_commands:
+                @self.cli.group(resource_def.cli_name,
+                                context_settings=self.cli_context_settings,
+                                short_help='{} management.'.format(resource_def.type))
+                def dummy_group():
+                    pass
+
             for cli_command, *args in resource_def.cli_commands:  # Register CLI commands
                 # todo cli commands with multiple arguments end-up reversed
                 # when teal has been executed multiple times (ex. testing)
                 # see _param_memo func in click package
-                self.cli.command(*args)(cli_command)
+                dummy_group.command(*args)(cli_command)
 
             # todo should we use resource_def.name instead of type?
             # are we going to have collisions? (2 resource_def -> 1 schema)
@@ -162,10 +176,13 @@ class Teal(Flask):
         response.status_code = UnprocessableEntity.code
         return response
 
-    @option('--erase/--no-erase', default=False, help='Delete all db contents before?')
+    @option('--erase/--no-erase',
+            default=False,
+            help='Delete all contents from the database (including common schemas)?')
     @option('--exclude-schema',
             default=None,
-            help='Schema to exclude creation. Required the SchemaSQLAlchemy.')
+            help='Schema to exclude creation (and deletion if --erase is set). '
+                 'Required the SchemaSQLAlchemy.')
     def init_db(self, erase: bool = False, exclude_schema=None):
         """
         Initializes a database from scratch,
@@ -183,7 +200,11 @@ class Teal(Flask):
         print('Initializing database...'.ljust(30), end='')
         with click_spinner.spinner():
             if erase:
-                self.db.drop_all()
+                if exclude_schema:  # Using then a schema teal sqlalchemy
+                    assert isinstance(self.db, SchemaSQLAlchemy)
+                    self.db.drop_schema()
+                else:  # using regular flask sqlalchemy
+                    self.db.drop_all()
             self._init_db(exclude_schema)
             self._init_resources()
             self.db.session.commit()

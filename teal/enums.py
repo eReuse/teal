@@ -4310,9 +4310,8 @@ edifact/d03a/s3/codes/cl1h.htm>`_.
 
 
 class Layouts(Enum):
-    """Keyboard layouts.
-
-    Taken from Debian's 9 /usr/share/X11/xkb/rules/evdev.lst.
+    """Keyboard layouts. Taken from Debian's 9
+    /usr/share/X11/xkb/rules/evdev.lst.
     """
     US = 'English (US)'
     AF = 'Afghani'

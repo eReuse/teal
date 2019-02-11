@@ -78,8 +78,7 @@ class SchemaSession(Session):
 
     def __init__(self, db, autocommit=False, autoflush=True, **options):
         super().__init__(db, autocommit, autoflush, **options)
-        if self.app.schema:
-            self.execute('SET search_path TO {}, public'.format(self.app.schema))
+        self.execute('SET search_path TO {}, public'.format(self.app.schema))
 
 
 class StrictVersionType(types.TypeDecorator):

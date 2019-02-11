@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import Callable, Iterable, Iterator, Tuple, Type, Union
 
+import inflection
 from anytree import PreOrderIter
 from boltons.typeutils import classproperty, issubclass
 from ereuse_utils.naming import Naming
@@ -335,6 +336,12 @@ class Resource(Blueprint):
     def resource(cls):
         return Naming.resource(cls.type)
 
+    @classproperty
+    def cli_name(cls):
+        """The name used to generate the CLI Click group for this
+        resource."""
+        return inflection.singularize(cls.resource)
+
     def load_resource(self):
         """
         Loads a schema and resource_def into the current request so it
@@ -377,4 +384,4 @@ def url_for_resource(resource: TYPE, item_id=None, method='GET') -> str:
     values = {}
     if item_id:
         values[current_app.resources[type].ID_NAME] = item_id
-    return url_for('{}.main'.format(type), _method=method,  **values)
+    return url_for('{}.main'.format(type), _method=method, **values)

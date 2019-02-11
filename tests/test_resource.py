@@ -115,7 +115,7 @@ def test_resource_without_path(config: Config, db: SQLAlchemy):
 
 
 def test_init_db(db: SQLAlchemy, config: Config):
-    """Tests :meth:`teal.resource.Resource.init_db`."""
+    """Tests :meth:`teal.resource.Resource.init_db` with one inventory."""
 
     class Foo(db.Model):
         id = Column(db.Integer, primary_key=True)
@@ -137,14 +137,19 @@ def test_init_db(db: SQLAlchemy, config: Config):
 
     # Test again but executing init-db through the command-line
     runner = app.test_cli_runner()
-    runner.invoke(args=['init-db'], catch_exceptions=False)
+    runner.invoke('init-db')
     with app.app_context():
         assert Foo.query.filter_by(id=2).one()
 
     # Test with --erase option
-    runner.invoke(args=['init-db', '--erase'], catch_exceptions=False)
+    runner.invoke('init-db', '--erase')
     with app.app_context():
         assert Foo.query.count() == 1
+
+
+@pytest.mark.xfail(reason='Do test')
+def test_init_db_multiple_inventories():
+    """Tests init db with several inventories"""
 
 
 def test_schema_non_writable():
