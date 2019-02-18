@@ -2,12 +2,14 @@ from distutils.version import StrictVersion
 from typing import Tuple
 from unittest.mock import MagicMock
 
-from flask import Response, json
+import pytest
+from flask import Response, current_app, json
 
 from teal.client import Client
 from teal.config import Config
 from teal.db import SchemaSQLAlchemy
 from teal.teal import Teal
+from tests import conftest
 
 
 def test_json_encoder(app: Teal):
@@ -32,3 +34,17 @@ def test_cors(fconfig: Config, db: SchemaSQLAlchemy):
     headers = response.headers.to_list()
     assert ('Access-Control-Expose-Headers', 'Authorization') in headers
     assert ('Access-Control-Allow-Origin', '*') in headers
+
+
+@pytest.mark.usefixtures(conftest.app_context.__name__)
+def test_regular_error():
+    """Tests a regular error that is not dumpeable."""
+    try:
+        9 / 0
+    except Exception as e:
+        r = current_app._handle_standard_error(e)
+    assert r.json == {
+        'code': 500,
+        'message': "Object of type 'ZeroDivisionError' is not JSON serializable",
+        'type': 'TypeError'
+    }

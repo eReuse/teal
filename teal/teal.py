@@ -8,7 +8,7 @@ from anytree import Node
 from apispec import APISpec
 from click import option
 from ereuse_utils import ensure_utf8
-from flask import Flask, Response, jsonify
+from flask import Flask, jsonify
 from flask.globals import _app_ctx_stack
 from flask_sqlalchemy import SQLAlchemy
 from marshmallow import ValidationError
@@ -160,8 +160,14 @@ class Teal(Flask):
         try:
             response = jsonify(e)
             response.status_code = e.code
-        except AttributeError as e:
-            response = Response(str(e), status=500)
+        except (AttributeError, TypeError) as e:
+            code = getattr(e, 'code', 500)
+            response = jsonify({
+                'message': str(e),
+                'code': code,
+                'type': e.__class__.__name__
+            })
+            response.status_code = code
         return response
 
     @staticmethod
