@@ -328,7 +328,7 @@ class DBError(BadRequest):
 
     def __init__(self, origin: IntegrityError):
         super().__init__(str(origin))
-        self.origin = origin
+        self._origin = origin
 
     def __new__(cls, origin: IntegrityError) -> Any:
         msg = str(origin)
@@ -338,4 +338,12 @@ class DBError(BadRequest):
 
 
 class UniqueViolation(DBError):
-    pass
+    def __init__(self, origin: IntegrityError):
+        super().__init__(origin)
+        self.constraint = self.description.split('"')[1]
+        self.field_name = None
+        self.field_value = None
+        if isinstance(origin.params, dict):
+            self.field_name, self.field_value = next(
+                (k, v) for k, v in origin.params.items() if k in self.constraint
+            )

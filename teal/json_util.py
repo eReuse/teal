@@ -1,10 +1,10 @@
-from ereuse_utils import JSONEncoder
+import ereuse_utils
 from flask.json import JSONEncoder as FlaskJSONEncoder
 from sqlalchemy.ext.baked import Result
 from sqlalchemy.orm import Query
 
 
-class TealJSONEncoder(JSONEncoder, FlaskJSONEncoder):
+class TealJSONEncoder(ereuse_utils.JSONEncoder, FlaskJSONEncoder):
 
     def default(self, obj):
         if isinstance(obj, (Result, Query)):

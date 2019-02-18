@@ -2,6 +2,7 @@ import inspect
 from typing import Dict, Type
 
 import click_spinner
+import ereuse_utils
 import flask_cors
 from anytree import Node
 from apispec import APISpec
@@ -157,13 +158,11 @@ class Teal(Flask):
         Handles HTTPExceptions by transforming them to JSON.
         """
         try:
-            data = {'message': e.description, 'code': e.code, 'type': e.__class__.__name__}
-        except AttributeError as e:
-            return Response(str(e), status=500)
-        else:
-            response = jsonify(data)
+            response = jsonify(e)
             response.status_code = e.code
-            return response
+        except AttributeError as e:
+            response = Response(str(e), status=500)
+        return response
 
     @staticmethod
     def _handle_validation_error(e: ValidationError):
@@ -253,3 +252,27 @@ class Teal(Flask):
                     self.spec.add_path(view=view_func)
             self._apidocs = self.spec.to_dict()
         return jsonify(self._apidocs)
+
+
+class DumpeableHTTPException(ereuse_utils.Dumpeable):
+    """Exceptions that inherit this class will be able to dump
+    to dicts and JSONs.
+    """
+
+    def dump(self):
+        # todo this is heavily ad-hoc and should be more generic
+        value = super().dump()
+        value['type'] = self.__class__.__name__
+        value['code'] = self.code
+        value.pop('exc', None)
+        value.pop('response', None)
+        if 'data' in value:
+            value['fields'] = value['data']['messages']
+            del value['data']
+        if 'message' not in value:
+            value['message'] = value.pop('description', str(self))
+        return value
+
+
+# Add dump capacity to Werkzeug's HTTPExceptions
+HTTPException.__bases__ = HTTPException.__bases__ + (DumpeableHTTPException,)

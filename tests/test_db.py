@@ -1,9 +1,11 @@
 import enum
 import ipaddress
+import json
 from distutils.version import StrictVersion
 
 import pytest
 from boltons import urlutils
+from flask import jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import StatementError
 from werkzeug.exceptions import NotFound
@@ -101,11 +103,23 @@ def test_db_int_enum(db: SQLAlchemy):
         db.session.flush()
 
 
+@pytest.mark.usefixtures(conftest.app_context.__name__)
 def test_db_error():
     normal = DBError(Exception())
     assert normal.__class__ == DBError
-    unique = DBError(Exception('UNIQUE constraint'))
+    e = Exception('UNIQUE constraint "foo"')
+    e.params = {
+        'foo': 'bar'
+    }
+    unique = DBError(e)
     assert unique.__class__ == UniqueViolation
+    e = json.loads(jsonify(unique).data)
+    assert e['message'] == 'UNIQUE constraint "foo"'
+    assert e['constraint'] == 'foo'
+    assert e['fieldName'] == 'foo'
+    assert e['fieldValue'] == 'bar'
+    assert e['type'] == 'UniqueViolation'
+    assert e['code'] == 400
 
 
 @pytest.mark.usefixtures(conftest.app_context.__name__)

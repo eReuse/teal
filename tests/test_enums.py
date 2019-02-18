@@ -24,4 +24,3 @@ def test_enum_subdivision_in_country():
 
 def test_enum_layouts():
     assert enums.Layouts.IN
-

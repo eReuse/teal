@@ -1,6 +1,6 @@
-from marshmallow.fields import Integer, Nested, Str
+from marshmallow.fields import Integer, Str
 
-from teal.query import Between, Equal, ILike, Or, Query, Sort, SortField, Join
+from teal.query import Between, Equal, ILike, Join, Or, Query, Sort, SortField
 from teal.teal import Teal
 from teal.utils import compiled
 
