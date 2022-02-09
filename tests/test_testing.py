@@ -32,7 +32,9 @@ def test_cors(fconfig: Config, db: SchemaSQLAlchemy):
     DeviceDef.VIEW.get = MagicMock(side_effect=foo)
     client = Teal(config=fconfig, db=db).test_client()  # type: Client
     _, response = client.get('/devices/')
-    headers = response.headers.to_list()
+    # NOTE(@slamora): if calling `to_wsgi_list()` is problematic maybe
+    # it could be replaced by cast to list
+    headers = response.headers.to_wsgi_list()
     assert ('Access-Control-Expose-Headers', 'Authorization') in headers
     assert ('Access-Control-Allow-Origin', '*') in headers
 
