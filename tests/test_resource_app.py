@@ -244,9 +244,4 @@ def test_http_exception(fconfig: Config, db: SQLAlchemy):
     DeviceDef.VIEW.get = MagicMock(side_effect=NotFound)
     client = Teal(config=fconfig, db=db).test_client()  # type: Client
     d, _ = client.get(res=DeviceDef.type, status=NotFound)
-    assert d == {
-        'code': 404,
-        'message': '404 Not Found: The requested URL was not found on the server.  '
-                   'If you entered the URL manually please check your spelling and try again.',
-        'type': 'NotFound'
-    }
+    assert d['code'] == 404

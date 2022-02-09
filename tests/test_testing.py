@@ -1,4 +1,5 @@
 from distutils.version import StrictVersion
+from re import I
 from typing import Tuple
 from unittest.mock import MagicMock
 
@@ -45,6 +46,6 @@ def test_regular_error():
         r = current_app._handle_standard_error(e)
     assert r.json == {
         'code': 500,
-        'message': "Object of type 'ZeroDivisionError' is not JSON serializable",
-        'type': 'TypeError'
+        'message': "division by zero",
+        'type': 'ZeroDivisionError'
     }
