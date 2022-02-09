@@ -6,7 +6,9 @@
 #
 anytree==2.4.3
     # via teal (setup.py)
-apispec==0.39.0
+apispec==4.5.0
+    # via teal (setup.py)
+apispec-webframeworks==0.5.2
     # via teal (setup.py)
 boltons==18.0.1
     # via
