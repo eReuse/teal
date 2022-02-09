@@ -115,10 +115,10 @@ class Teal(Flask):
         """
         self.tree = {}  # type: Dict[str, Node]
         """
-        A tree representing the hierarchy of the instances of 
+        A tree representing the hierarchy of the instances of
         ResourceDefinitions. ResourceDefinitions use these nodes to
         traverse their hierarchy.
-         
+
         Do not use the normal python class hierarchy as it is global,
         thus unreliable if you run different apps with different
         schemas (for example, an extension that is only added on the
@@ -160,7 +160,7 @@ class Teal(Flask):
         try:
             response = jsonify(e)
             response.status_code = e.code
-        except (AttributeError, TypeError) as e:
+        except (AttributeError, TypeError):
             code = getattr(e, 'code', 500)
             response = jsonify({
                 'message': str(e),
