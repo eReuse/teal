@@ -10,7 +10,7 @@ apispec==4.5.0
     # via teal (setup.py)
 apispec-webframeworks==0.5.2
     # via teal (setup.py)
-boltons==18.0.1
+boltons==21.0.0
     # via
     #   ereuse-utils
     #   teal (setup.py)
