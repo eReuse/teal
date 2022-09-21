@@ -29,8 +29,8 @@ class Between(ListQuery):
 
     """
 
-    def _deserialize(self, value, attr, data):
-        l = super()._deserialize(value, attr, data)
+    def _deserialize(self, value, attr, data, **kwargs):
+        l = super()._deserialize(value, attr, data, **kwargs)
         return between(self.column, *l)
 
 
@@ -53,8 +53,8 @@ class Equal(Field):
         self.column = column
         self.field = field
 
-    def _deserialize(self, value, attr, data):
-        v = super()._deserialize(value, attr, data)
+    def _deserialize(self, value, attr, data, **kwargs):
+        v = super()._deserialize(value, attr, data, **kwargs)
         return self.column == self.field.deserialize(v)
 
 
@@ -76,8 +76,8 @@ class Or(List):
         f = Or(..., validates=Length(equal=1))
     """
 
-    def _deserialize(self, value, attr, data):
-        l = super()._deserialize(value, attr, data)
+    def _deserialize(self, value, attr, data, **kwargs):
+        l = super()._deserialize(value, attr, data, **kwargs)
         return or_(v for v in l)
 
 
@@ -94,8 +94,8 @@ class ILike(Str):
                          load_only, dump_only, missing, error_messages, **metadata)
         self.column = column
 
-    def _deserialize(self, value, attr, data):
-        v = super()._deserialize(value, attr, data)
+    def _deserialize(self, value, attr, data, **kwargs):
+        v = super()._deserialize(value, attr, data, **kwargs)
         return self.column.ilike('{}%'.format(v))
 
 
@@ -114,8 +114,8 @@ class QueryField(Field):
         self.query = query
         self.field = field
 
-    def _deserialize(self, value, attr, data):
-        v = super()._deserialize(value, attr, data)
+    def _deserialize(self, value, attr, data, **kwargs):
+        v = super()._deserialize(value, attr, data, **kwargs)
         return self.query(v)
 
 
@@ -126,8 +126,8 @@ class Join(Nested):
         super().__init__(nested, default, exclude, only, **kwargs)
         self.join = join
 
-    def _deserialize(self, value, attr, data):
-        v = list(super()._deserialize(value, attr, data))
+    def _deserialize(self, value, attr, data, **kwargs):
+        v = list(super()._deserialize(value, attr, data, **kwargs))
         v.append(self.join)
         return v
 
@@ -188,8 +188,8 @@ class SortField(Boolean):
         super().__init__(truthy, falsy, **kwargs)
         self.column = column
 
-    def _deserialize(self, value, attr, data):
-        v = super()._deserialize(value, attr, data)
+    def _deserialize(self, value, attr, data, **kwargs):
+        v = super()._deserialize(value, attr, data, **kwargs)
         return self.column.asc() if v else self.column.desc()
 
 
