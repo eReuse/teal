@@ -51,7 +51,7 @@ class Schema(MarshmallowSchema):
         return Naming.resource(cls.t)
 
     @validates_schema(pass_original=True)
-    def check_unknown_fields(self, _, original_data: dict):
+    def check_unknown_fields(self, _, original_data: dict, **kwargs):
         """
         Raises a validationError when user sends extra fields.
 
@@ -63,7 +63,7 @@ class Schema(MarshmallowSchema):
             raise ValidationError('Unknown field', unknown_fields)
 
     @validates_schema(pass_original=True)
-    def check_dump_only(self, _, orig_data: dict):
+    def check_dump_only(self, _, orig_data: dict, **kwargs):
         """
         Raises a ValidationError if the user is submitting
         'read-only' fields.
@@ -76,7 +76,7 @@ class Schema(MarshmallowSchema):
 
     @pre_load
     @post_dump
-    def remove_none_values(self, data: dict) -> dict:
+    def remove_none_values(self, data: dict, **kwargs) -> dict:
         """
         Skip from dumping and loading values that are None.
 
