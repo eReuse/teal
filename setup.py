@@ -21,13 +21,14 @@ setup(
         'boltons',
         'ereuse-utils[naming, test, session, cli]>=0.4.0b21',
         'flask>=2.0',
-        'flask-sqlalchemy',
+        'flask-sqlalchemy>=2.5.1',
         'sqlalchemy-utils[password, color, phone]',
         'marshmallow>=3.0.0',
         'marshmallow-enum',
         'webargs',
         'flask-cors',
         'click-spinner',
+        'Werkzeug==2.0.3',  # https://stackoverflow.com/a/73476925/1538221
     ],
     tests_requires=[
         'pytest',
