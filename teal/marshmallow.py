@@ -46,8 +46,10 @@ class URL(Field):
                  default=missing_, attribute=None, data_key=None, error=None, validate=None,
                  required=False, allow_none=None, load_only=False, dump_only=False,
                  missing=missing_, error_messages=None, **metadata):
-        super().__init__(default, attribute, data_key, error, validate, required, allow_none,
-                         load_only, dump_only, missing, error_messages, **metadata)
+        super().__init__(default=default, attribute=attribute, data_key=data_key, error=error,
+                         validate=validate, required=required, allow_none=allow_none,
+                         load_only=load_only, dump_only=dump_only, missing=missing,
+                         error_messages=error_messages, **metadata)
         self.require_path = require_path
 
     @if_none_return_none
@@ -100,8 +102,10 @@ class SanitizedStr(String):
                  validate=None,
                  required=False, allow_none=None, load_only=False, dump_only=False,
                  missing=missing_, error_messages=None, **metadata):
-        super().__init__(default, attribute, data_key, error, validate, required, allow_none,
-                         load_only, dump_only, missing, error_messages, **metadata)
+        super().__init__(default=default, attribute=attribute, data_key=data_key, error=error,
+                         validate=validate, required=required, allow_none=allow_none,
+                         load_only=load_only, dump_only=dump_only, missing=missing,
+                         error_messages=error_messages, **metadata)
         self.lower = lower
 
     def _deserialize(self, value, attr, data, **kwargs):
@@ -162,7 +166,7 @@ class NestedOn(MarshmallowNested):
         self.only_query = only_query
         assert isinstance(polymorphic_on, str)
         assert isinstance(only, str) or only is None
-        super().__init__(nested, default, exclude, only, **kwargs)
+        super().__init__(nested, default=default, exclude=exclude, only=only, **kwargs)
         self.db = db
 
     def _deserialize(self, value, attr, data, **kwargs):
