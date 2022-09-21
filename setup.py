@@ -23,7 +23,7 @@ setup(
         'flask>=2.0',
         'flask-sqlalchemy',
         'sqlalchemy-utils[password, color, phone]',
-        'marshmallow==3.0.0b11',
+        'marshmallow>=3.0.0',
         'marshmallow-enum',
         'webargs',
         'flask-cors',
