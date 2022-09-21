@@ -147,12 +147,12 @@ class Query(MarshmallowSchema):
     directly from the browser: ``foo.com/foo/?filter={'foo': 'bar'}``.
     """
 
-    def load(self, data, many=None, partial=None):
+    def load(self, data, many=None, partial=None, unknown=None):
         """
         Flatten ``Nested`` ``Query`` and add the list of results to
         a SQL ``AND``.
         """
-        values = super().load(data, many, partial).values()
+        values = super().load(data, many, partial, unknown).values()
         return flatten_mixed(values)
 
     def dump(self, obj, many=None, update_fields=True):
