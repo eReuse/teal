@@ -6,6 +6,8 @@ import ereuse_utils
 import flask_cors
 from anytree import Node
 from apispec import APISpec
+from apispec_webframeworks.flask import FlaskPlugin
+from apispec.ext.marshmallow import MarshmallowPlugin
 from click import option
 from ereuse_utils import ensure_utf8
 from flask import Flask, jsonify
@@ -236,15 +238,13 @@ class Teal(Flask):
     def apidocs(self):
         """Apidocs configuration and generation."""
         self.spec = APISpec(
-            plugins=(
-                'apispec.ext.flask',
-                'apispec.ext.marshmallow',
-            ),
+            openapi_version='2.0',
+            plugins=[FlaskPlugin(), MarshmallowPlugin()],
             **self.config.get_namespace('API_DOC_CONFIG_')
         )
         for name, resource in self.resources.items():
             if resource.SCHEMA:
-                self.spec.definition(name,
+                self.spec.components.schema(name,
                                      schema=resource.SCHEMA,
                                      extra_fields=self.config.get_namespace('API_DOC_CLASS_'))
         self.add_url_rule('/apidocs', view_func=self.apidocs_endpoint)
@@ -255,7 +255,7 @@ class Teal(Flask):
             # We are forced to to this under a request context
             for path, view_func in self.view_functions.items():
                 if path != 'static':
-                    self.spec.add_path(view=view_func)
+                    self.spec.path(view=view_func)
             self._apidocs = self.spec.to_dict()
         return jsonify(self._apidocs)
 

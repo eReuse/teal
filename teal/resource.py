@@ -51,7 +51,7 @@ class Schema(MarshmallowSchema):
         return Naming.resource(cls.t)
 
     @validates_schema(pass_original=True)
-    def check_unknown_fields(self, _, original_data: dict):
+    def check_unknown_fields(self, _, original_data: dict, **kwargs):
         """
         Raises a validationError when user sends extra fields.
 
@@ -63,7 +63,7 @@ class Schema(MarshmallowSchema):
             raise ValidationError('Unknown field', unknown_fields)
 
     @validates_schema(pass_original=True)
-    def check_dump_only(self, _, orig_data: dict):
+    def check_dump_only(self, _, orig_data: dict, **kwargs):
         """
         Raises a ValidationError if the user is submitting
         'read-only' fields.
@@ -76,7 +76,7 @@ class Schema(MarshmallowSchema):
 
     @pre_load
     @post_dump
-    def remove_none_values(self, data: dict) -> dict:
+    def remove_none_values(self, data: dict, **kwargs) -> dict:
         """
         Skip from dumping and loading values that are None.
 
@@ -93,7 +93,6 @@ class Schema(MarshmallowSchema):
     def dump(self,
              model: Union['db.Model', Iterable['db.Model']],
              many=None,
-             update_fields=True,
              nested=None,
              polymorphic_on='t'):
         """
@@ -125,22 +124,22 @@ class Schema(MarshmallowSchema):
             # todo this breaks with normal dicts. Maybe this should go
             # in NestedOn in the same way it happens when loading
             if isinstance(model, dict):
-                return super().dump(model, update_fields=update_fields)
+                return super().dump(model)
             else:
-                return [self._polymorphic_dump(o, update_fields, polymorphic_on) for o in model]
+                return [self._polymorphic_dump(o, polymorphic_on) for o in model]
 
         else:
             if isinstance(model, dict):
-                return super().dump(model, update_fields=update_fields)
+                return super().dump(model)
             else:
-                return self._polymorphic_dump(model, update_fields, polymorphic_on)
+                return self._polymorphic_dump(model, polymorphic_on)
 
-    def _polymorphic_dump(self, obj: 'db.Model', update_fields, polymorphic_on='t'):
+    def _polymorphic_dump(self, obj: 'db.Model', polymorphic_on='t'):
         schema = current_app.resources[getattr(obj, polymorphic_on)].schema
         if schema.t != self.t:
-            return super(schema.__class__, schema).dump(obj, False, update_fields)
+            return super(schema.__class__, schema).dump(obj, False)
         else:
-            return super().dump(obj, False, update_fields)
+            return super().dump(obj, False)
 
     def jsonify(self,
                 model: Union['db.Model', Iterable['db.Model']],
@@ -183,7 +182,7 @@ class View(MethodView):
         # This is unique for each view call
         self.schema = g.schema
         """
-        The default schema in this resource. 
+        The default schema in this resource.
         Added as an attr for commodity; you can always use g.schema.
         """
         return super().dispatch_request(*args, **kwargs)
@@ -267,7 +266,7 @@ class Resource(Blueprint):
     """The Schema that validates a submitting resource at the entry point."""
     AUTH = False
     """
-    If true, authentication is required for all the endpoints of this 
+    If true, authentication is required for all the endpoints of this
     resource defined in ``VIEW``.
     """
     ID_NAME = 'id'
@@ -278,12 +277,12 @@ class Resource(Blueprint):
     """
     The converter for the id.
 
-    Note that converters do **cast** the value, so the converter 
+    Note that converters do **cast** the value, so the converter
     ``uuid`` will return an ``UUID`` object.
     """
     __type__ = None  # type: str
     """
-    The type of resource. 
+    The type of resource.
     If none, it is used the type of the Schema (``Schema.type``)
     """
 

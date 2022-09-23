@@ -21,11 +21,11 @@ class Version(Field):
     """A python StrictVersion field, like '1.0.1'."""
 
     @if_none_return_none
-    def _serialize(self, value, attr, obj):
+    def _serialize(self, value, attr, obj, **kwargs):
         return str(value)
 
     @if_none_return_none
-    def _deserialize(self, value, attr, data):
+    def _deserialize(self, value, attr, data, **kwargs):
         return StrictVersion(value)
 
 
@@ -33,11 +33,11 @@ class Color(Field):
     """Any color field that can be accepted by the colour package."""
 
     @if_none_return_none
-    def _serialize(self, value, attr, obj):
+    def _serialize(self, value, attr, obj, **kwargs):
         return str(value)
 
     @if_none_return_none
-    def _deserialize(self, value, attr, data):
+    def _deserialize(self, value, attr, data, **kwargs):
         return colour.Color(value)
 
 
@@ -46,16 +46,18 @@ class URL(Field):
                  default=missing_, attribute=None, data_key=None, error=None, validate=None,
                  required=False, allow_none=None, load_only=False, dump_only=False,
                  missing=missing_, error_messages=None, **metadata):
-        super().__init__(default, attribute, data_key, error, validate, required, allow_none,
-                         load_only, dump_only, missing, error_messages, **metadata)
+        super().__init__(default=default, attribute=attribute, data_key=data_key, error=error,
+                         validate=validate, required=required, allow_none=allow_none,
+                         load_only=load_only, dump_only=dump_only, missing=missing,
+                         error_messages=error_messages, **metadata)
         self.require_path = require_path
 
     @if_none_return_none
-    def _serialize(self, value, attr, obj):
+    def _serialize(self, value, attr, obj, **kwargs):
         return value.to_text()
 
     @if_none_return_none
-    def _deserialize(self, value, attr, data):
+    def _deserialize(self, value, attr, data, **kwargs):
         url = urlutils.URL(value)
         if url.scheme or url.host:
             if self.require_path:
@@ -68,21 +70,21 @@ class URL(Field):
 
 class IP(Field):
     @if_none_return_none
-    def _serialize(self, value: Union[ipaddress.IPv4Address, ipaddress.IPv6Address], attr, obj):
+    def _serialize(self, value: Union[ipaddress.IPv4Address, ipaddress.IPv6Address], attr, obj, **kwargs):
         return str(value)
 
     @if_none_return_none
-    def _deserialize(self, value: str, attr, data):
+    def _deserialize(self, value: str, attr, data, **kwargs):
         return ipaddress.ip_address(value)
 
 
 class Phone(Field):
     @if_none_return_none
-    def _serialize(self, value: PhoneNumber, attr, obj):
+    def _serialize(self, value: PhoneNumber, attr, obj, **kwargs):
         return value.international
 
     @if_none_return_none
-    def _deserialize(self, value: str, attr, data):
+    def _deserialize(self, value: str, attr, data, **kwargs):
         phone = PhoneNumber(value)
         if not phone.is_valid_number():
             raise ValueError('The phone number is invalid.')
@@ -100,12 +102,14 @@ class SanitizedStr(String):
                  validate=None,
                  required=False, allow_none=None, load_only=False, dump_only=False,
                  missing=missing_, error_messages=None, **metadata):
-        super().__init__(default, attribute, data_key, error, validate, required, allow_none,
-                         load_only, dump_only, missing, error_messages, **metadata)
+        super().__init__(default=default, attribute=attribute, data_key=data_key, error=error,
+                         validate=validate, required=required, allow_none=allow_none,
+                         load_only=load_only, dump_only=dump_only, missing=missing,
+                         error_messages=error_messages, **metadata)
         self.lower = lower
 
-    def _deserialize(self, value, attr, data):
-        out = super()._deserialize(value, attr, data)
+    def _deserialize(self, value, attr, data, **kwargs):
+        out = super()._deserialize(value, attr, data, **kwargs)
         out = out.strip()
         if self.lower:
             out = out.lower()
@@ -162,10 +166,10 @@ class NestedOn(MarshmallowNested):
         self.only_query = only_query
         assert isinstance(polymorphic_on, str)
         assert isinstance(only, str) or only is None
-        super().__init__(nested, default, exclude, only, **kwargs)
+        super().__init__(nested, default=default, exclude=exclude, only=only, **kwargs)
         self.db = db
 
-    def _deserialize(self, value, attr, data):
+    def _deserialize(self, value, attr, data, **kwargs):
         if self.many and not utils.is_collection(value):
             self.fail('type', input=value, type=value.__class__.__name__)
 
