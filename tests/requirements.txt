@@ -44,3 +44,4 @@ webargs==5.5.3
 ### manual config ###
 PyYAML==5.4
 SQLAlchemy==1.2.17
+Werkzeug==2.0.3     # locked until issue #6 of ereuse_utils is fixed
